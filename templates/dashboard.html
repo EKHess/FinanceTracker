@@ -32,9 +32,31 @@
 
             <div class="card-body">
 
+                <h5>Income</h5>
+
+                <h2 id="income">$0.00</h2>
+
+                <button
+                    class="btn btn-primary btn-sm"
+                    onclick="editIncome()">
+                    Edit
+                </button>
+
+            </div>
+
+            <div class="card-body">
+
+                <h5>Spending</h5>
+
+                <h2 id="spending">$0.00</h2>
+
+            </div>
+
+            <div class="card-body">
+
                 <h5>Surplus</h5>
 
-                <h2 class="text-success">$0.00</h2>
+                <h2 id="surplus" class="text-success">$0.00</h2>
 
             </div>
 
@@ -43,6 +65,8 @@
     </div>
 
 </div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
 </body>
 

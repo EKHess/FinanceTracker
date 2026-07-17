@@ -1,9 +1,14 @@
-from flask import Flask, render_template
+from flask import Flask, jsonify, render_template, request
 import calendar
 
 from database import (
     initialize_database,
     get_current_month
+)
+
+from services.months import (
+    get_month_summary,
+    update_income,
 )
 
 app = Flask(__name__)
@@ -23,6 +28,28 @@ def dashboard():
         month=month,
         month_name=month_name
     )
+
+@app.route("/api/summary")
+def api_summary():
+
+    month = get_current_month()
+
+    summary = get_month_summary(month["id"])
+
+    return jsonify(summary)
+
+@app.route("/api/income", methods=["POST"])
+def api_income():
+
+    data = request.get_json()
+
+    income = float(data["income"])
+
+    month = get_current_month()
+
+    update_income(month["id"], income)
+
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":
