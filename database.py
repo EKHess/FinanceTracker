@@ -20,11 +20,19 @@ def initialize_database():
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS months (
+
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        label TEXT NOT NULL UNIQUE,
+
         month INTEGER NOT NULL,
+
         year INTEGER NOT NULL,
-        income REAL DEFAULT 0,
-        finalized INTEGER DEFAULT 0,
+
+        income REAL NOT NULL DEFAULT 0,
+
+        finalized INTEGER NOT NULL DEFAULT 0,
+
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -50,33 +58,37 @@ def get_current_month():
 
     today = datetime.today()
 
+    label = f"{today.year}-{today.month:02d}"
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
         SELECT *
         FROM months
-        WHERE month = ?
-        AND year = ?
-    """, (today.month, today.year))
+        WHERE label = ?
+    """, (label,))
 
     month = cursor.fetchone()
 
     if month is None:
 
         cursor.execute("""
-            INSERT INTO months(month, year)
-            VALUES(?, ?)
-        """, (today.month, today.year))
+            INSERT INTO months(label, month, year)
+            VALUES(?,?,?)
+        """, (
+            label,
+            today.month,
+            today.year
+        ))
 
         conn.commit()
 
         cursor.execute("""
             SELECT *
             FROM months
-            WHERE month=?
-            AND year=?
-        """, (today.month, today.year))
+            WHERE label=?
+        """, (label,))
 
         month = cursor.fetchone()
 
