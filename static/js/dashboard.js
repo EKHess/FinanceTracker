@@ -89,23 +89,75 @@ async function loadCategories() {
         data["Guilt Free Spending"].count + " expenses";
 }
 
-function showCategory(category){
+let selectedCategory = "";
+
+async function showCategory(category){
+
+    selectedCategory = category;
 
     document
         .getElementById("categoryTitle")
         .innerHTML = category;
 
-    document
-        .getElementById("categoryExpenses")
-        .innerHTML =
-        "<p>Expenses will appear here.</p>";
-
-    const modal =
-        new bootstrap.Modal(
-            document.getElementById("categoryModal")
+    const response =
+        await fetch(
+            "/api/expenses?category=" +
+            encodeURIComponent(category)
         );
 
-    modal.show();
+    const expenses =
+        await response.json();
+
+    const table =
+        document.getElementById(
+            "expenseTable"
+        );
+
+    table.innerHTML = "";
+
+    expenses.forEach(expense => {
+
+        table.innerHTML += `
+        <tr>
+
+            <td>${expense.description}</td>
+
+            <td>$${expense.amount.toFixed(2)}</td>
+
+            <td>
+
+                ${expense.recurring ? "✓" : ""}
+
+            </td>
+
+            <td>
+
+                <button
+                    class="btn btn-sm btn-outline-primary">
+
+                    Edit
+
+                </button>
+
+                <button
+                    class="btn btn-sm btn-outline-danger">
+
+                    Delete
+
+                </button>
+
+            </td>
+
+        </tr>
+        `;
+
+    });
+
+    new bootstrap.Modal(
+        document.getElementById(
+            "categoryModal"
+        )
+    ).show();
 }
 
 loadDashboard();

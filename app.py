@@ -17,6 +17,11 @@ from services.months import (
     get_category_totals
 )
 
+from services.expenses import (
+    get_expenses,
+    add_expense
+)
+
 app = Flask(__name__)
 
 initialize_database()
@@ -65,6 +70,39 @@ def api_categories():
     return jsonify(
         get_category_totals(month["id"])
     )
+
+@app.route("/api/expenses")
+def api_expenses():
+
+    month = get_current_month()
+
+    category = request.args.get("category")
+
+    return jsonify(
+        get_expenses(
+            month["id"],
+            category
+        )
+    )
+
+@app.route("/api/expenses", methods=["POST"])
+def api_add_expense():
+
+    data = request.get_json()
+
+    month = get_current_month()
+
+    add_expense(
+        month["id"],
+        data["description"],
+        float(data["amount"]),
+        data["category"],
+        int(data["recurring"])
+    )
+
+    return jsonify({
+        "success": True
+    })
 
 
 if __name__ == "__main__":
