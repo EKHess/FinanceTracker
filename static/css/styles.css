@@ -5,3 +5,12 @@ body{
 h1{
     font-weight:700;
 }
+
+.category-card{
+    cursor:pointer;
+    transition:0.2s;
+}
+
+.category-card:hover{
+    transform:translateY(-3px);
+}

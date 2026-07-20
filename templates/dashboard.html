@@ -64,9 +64,140 @@
 
     </div>
 
+    <div class="row mt-4">
+
+        <div class="col-md-3">
+
+            <div
+                class="card shadow-sm category-card"
+                onclick="showCategory('Fixed Costs')">
+
+                <div class="card-body">
+
+                    <h5>Fixed Costs</h5>
+
+                    <h3 id="fixed-total">$0.00</h3>
+
+                    <small id="fixed-count">
+                        0 expenses
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div
+                class="card shadow-sm category-card"
+                onclick="showCategory('Savings')">
+
+                <div class="card-body">
+
+                    <h5>Savings</h5>
+
+                    <h3 id="savings-total">$0.00</h3>
+
+                    <small id="savings-count">
+                        0 expenses
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div
+                class="card shadow-sm category-card"
+                onclick="showCategory('Investments')">
+
+                <div class="card-body">
+
+                    <h5>Investments</h5>
+
+                    <h3 id="investments-total">$0.00</h3>
+
+                    <small id="investments-count">
+                        0 expenses
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-3">
+
+            <div
+                class="card shadow-sm category-card"
+                onclick="showCategory('Guilt Free Spending')">
+
+                <div class="card-body">
+
+                    <h5>Guilt Free</h5>
+
+                    <h3 id="guilt-total">$0.00</h3>
+
+                    <small id="guilt-count">
+                        0 expenses
+                    </small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="modal fade"
+     id="categoryModal"
+     tabindex="-1">
+
+    <div class="modal-dialog modal-lg">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <h5
+                    id="categoryTitle"
+                    class="modal-title">
+                    Category
+                </h5>
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal">
+                </button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <div id="categoryExpenses">
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 

@@ -11,6 +11,12 @@ from services.months import (
     update_income,
 )
 
+from services.months import (
+    get_month_summary,
+    update_income,
+    get_category_totals
+)
+
 app = Flask(__name__)
 
 initialize_database()
@@ -50,6 +56,15 @@ def api_income():
     update_income(month["id"], income)
 
     return jsonify({"success": True})
+
+@app.route("/api/categories")
+def api_categories():
+
+    month = get_current_month()
+
+    return jsonify(
+        get_category_totals(month["id"])
+    )
 
 
 if __name__ == "__main__":
