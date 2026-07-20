@@ -68,3 +68,18 @@ def add_expense(
 
     conn.commit()
     conn.close()
+
+def delete_expense(expense_id):
+
+    conn = get_connection()
+
+    conn.execute(
+        """
+        DELETE FROM expenses
+        WHERE id=?
+        """,
+        (expense_id,)
+    )
+
+    conn.commit()
+    conn.close()

@@ -245,5 +245,22 @@ async function refreshCategory(){
     await loadCategories();
 }
 
+async function deleteExpense(id){
+
+    if(!confirm(
+        "Delete this expense?"
+    ))
+        return;
+
+    await fetch(
+        "/api/expenses/"+id,
+        {
+            method:"DELETE"
+        }
+    );
+
+    await refreshCategory();
+}
+
 loadDashboard();
 loadCategories();

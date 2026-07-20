@@ -19,7 +19,8 @@ from services.months import (
 
 from services.expenses import (
     get_expenses,
-    add_expense
+    add_expense,
+    delete_expense
 )
 
 app = Flask(__name__)
@@ -99,6 +100,15 @@ def api_add_expense():
         data["category"],
         int(data["recurring"])
     )
+
+    return jsonify({
+        "success": True
+    })
+
+@app.route("/api/expenses/<int:id>", methods=["DELETE"])
+def api_delete_expense(id):
+
+    delete_expense(id)
 
     return jsonify({
         "success": True
