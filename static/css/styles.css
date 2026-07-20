@@ -1,16 +1,7 @@
-body{
-    background:#f5f5f5;
-}
-
-h1{
-    font-weight:700;
-}
-
-.category-card{
-    cursor:pointer;
-    transition:0.2s;
-}
-
-.category-card:hover{
-    transform:translateY(-3px);
-}
+body { background: #f5f6fa; }
+h1 { font-weight: 700; }
+.metric-card, .category-card { border: 0; border-radius: 1rem; }
+.metric-card span { color: #6c757d; font-size: .9rem; text-transform: uppercase; }
+.category-card { cursor: pointer; transition: transform .2s, box-shadow .2s; }
+.category-card:hover { transform: translateY(-3px); box-shadow: 0 .75rem 1.5rem rgba(15, 23, 42, .12) !important; }
+.category-card h5 { font-weight: 700; }

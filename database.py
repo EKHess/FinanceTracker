@@ -53,6 +53,26 @@ def initialize_database():
 
     conn.commit()
     conn.close()
+    migrate_categories()
+
+
+def migrate_categories():
+    legacy_categories = {
+        "Fixed Costs": "fixed",
+        "Savings": "savings",
+        "Investments": "investments",
+        "Guilt Free Spending": "guilt_free",
+        "Guilt Free": "guilt_free",
+    }
+
+    conn = get_connection()
+    for legacy, category_id in legacy_categories.items():
+        conn.execute(
+            "UPDATE expenses SET category = ? WHERE category = ?",
+            (category_id, legacy),
+        )
+    conn.commit()
+    conn.close()
 
 def get_current_month():
 
