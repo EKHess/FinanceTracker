@@ -8,8 +8,9 @@ async function api(path, options = {}) {
         headers: { "Content-Type": "application/json", ...(options.headers || {}) },
         ...options,
     });
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Request failed: ${response.status}`);
+    return data;
 }
 
 async function loadDashboard() {
@@ -58,6 +59,12 @@ function renderChart(categories) {
         data: { labels, datasets: [{ data, backgroundColor: colors }] },
         options: { plugins: { legend: { position: "bottom" } }, cutout: "60%" },
     });
+}
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value;
+    return div.innerHTML;
 }
 
 async function editIncome() {
@@ -123,3 +130,140 @@ async function deleteExpense(id) {
 }
 
 loadDashboard();
+
+function openSaveScorecardModal() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+    document.getElementById("scorecardName").value = `${today.toLocaleString("default", { month: "long" })} ${year}`;
+    document.getElementById("scorecardStartDate").value = `${year}-${month}-01`;
+    document.getElementById("scorecardEndDate").value = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+    document.getElementById("scorecardSaveError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("saveScorecardModal")).show();
+}
+
+async function saveScorecard() {
+    const error = document.getElementById("scorecardSaveError");
+    error.classList.add("d-none");
+    const payload = {
+        name: document.getElementById("scorecardName").value,
+        start_date: document.getElementById("scorecardStartDate").value,
+        end_date: document.getElementById("scorecardEndDate").value,
+    };
+
+    try {
+        await api("/api/scorecards", { method: "POST", body: JSON.stringify(payload) });
+        bootstrap.Modal.getInstance(document.getElementById("saveScorecardModal")).hide();
+        await loadDashboard();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
+}
+
+async function showScorecards() {
+    const modal = new bootstrap.Modal(document.getElementById("scorecardsModal"));
+    modal.show();
+    await refreshScorecardList();
+}
+
+function renderScorecardList(scorecards) {
+    const list = document.getElementById("scorecardList");
+    list.innerHTML = "";
+    if (!scorecards.length) {
+        list.innerHTML = '<div class="text-muted">No scorecards saved yet.</div>';
+        return;
+    }
+    scorecards.forEach((scorecard) => {
+        const button = document.createElement("button");
+        button.className = "list-group-item list-group-item-action";
+        button.innerHTML = `<div class="fw-bold">${escapeHtml(scorecard.name)}</div><small>${scorecard.start_date} – ${scorecard.end_date}</small><div>${money.format(scorecard.total_spending)}</div>`;
+        button.addEventListener("click", () => loadScorecardDetails(scorecard.id));
+        list.appendChild(button);
+    });
+}
+
+async function loadScorecardDetails(id) {
+    const scorecard = await api(`/api/scorecards/${id}`);
+    renderScorecardDetails(scorecard);
+}
+
+
+let activeScorecardId = null;
+let editingScorecardExpenseId = null;
+
+function categoryOptions(selectedCategory = "") {
+    return Object.entries(window.CATEGORY_CONFIG).map(([id, category]) => `<option value="${id}" ${id === selectedCategory ? "selected" : ""}>${category.label}</option>`).join("");
+}
+
+function showScorecardExpenseForm(expense = null) {
+    editingScorecardExpenseId = expense?.id || null;
+    const form = document.getElementById("scorecardExpenseForm");
+    form.classList.remove("d-none");
+    document.getElementById("scorecardExpenseFormTitle").textContent = expense ? "Edit saved charge" : "Add saved charge";
+    document.getElementById("scorecardExpenseDescription").value = expense?.description || "";
+    document.getElementById("scorecardExpenseAmount").value = expense?.amount || "";
+    document.getElementById("scorecardExpenseCategory").value = expense?.category || "fixed";
+    document.getElementById("scorecardExpenseRecurring").checked = Boolean(expense?.recurring);
+}
+
+function hideScorecardExpenseForm() {
+    editingScorecardExpenseId = null;
+    document.getElementById("scorecardExpenseForm").classList.add("d-none");
+}
+
+async function saveScorecardExpense() {
+    const payload = {
+        description: document.getElementById("scorecardExpenseDescription").value,
+        amount: parseFloat(document.getElementById("scorecardExpenseAmount").value) || 0,
+        category: document.getElementById("scorecardExpenseCategory").value,
+        recurring: document.getElementById("scorecardExpenseRecurring").checked,
+    };
+    const path = editingScorecardExpenseId ? `/api/scorecards/${activeScorecardId}/expenses/${editingScorecardExpenseId}` : `/api/scorecards/${activeScorecardId}/expenses`;
+    const method = editingScorecardExpenseId ? "PUT" : "POST";
+    const scorecard = await api(path, { method, body: JSON.stringify(payload) });
+    renderScorecardDetails(scorecard);
+    await refreshScorecardList();
+}
+
+async function deleteScorecardExpense(expenseId) {
+    if (!confirm("Delete this saved charge?")) return;
+    const scorecard = await api(`/api/scorecards/${activeScorecardId}/expenses/${expenseId}`, { method: "DELETE" });
+    renderScorecardDetails(scorecard);
+    await refreshScorecardList();
+}
+
+async function deleteActiveScorecard() {
+    if (!activeScorecardId) return;
+    if (!confirm("Delete this scorecard? This action cannot be undone.")) return;
+    await api(`/api/scorecards/${activeScorecardId}`, { method: "DELETE" });
+    activeScorecardId = null;
+    document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
+    document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+    await refreshScorecardList();
+}
+
+async function refreshScorecardList() {
+    const scorecards = await api("/api/scorecards");
+    renderScorecardList(scorecards);
+}
+
+function renderScorecardDetails(scorecard) {
+    activeScorecardId = scorecard.id;
+    editingScorecardExpenseId = null;
+    const details = document.getElementById("scorecardDetails");
+    details.classList.remove("text-muted");
+    details.innerHTML = `<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3"><div><h4>${escapeHtml(scorecard.name)}</h4><div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div></div><div class="text-end"><h4>${money.format(scorecard.total_spending)}</h4><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button></div></div><div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between align-items-center"><h5 class="mb-0">Saved charges</h5><button class="btn btn-sm btn-success" onclick="showScorecardExpenseForm()">+ Add Charge</button></div><div id="scorecardExpenseForm" class="row g-2 align-items-center mt-2 d-none"><div class="col-12"><strong id="scorecardExpenseFormTitle">Add saved charge</strong></div><div class="col-md-4"><input id="scorecardExpenseDescription" class="form-control" placeholder="Description"></div><div class="col-md-2"><input id="scorecardExpenseAmount" class="form-control" type="number" step="0.01" min="0" placeholder="Amount"></div><div class="col-md-3"><select id="scorecardExpenseCategory" class="form-select">${categoryOptions()}</select></div><div class="col-md-1"><div class="form-check"><input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox"><label class="form-check-label">Recurring</label></div></div><div class="col-md-2 d-flex gap-2"><button class="btn btn-primary" onclick="saveScorecardExpense()">Save</button><button class="btn btn-outline-secondary" onclick="hideScorecardExpenseForm()">Cancel</button></div></div></div></div>`;
+
+    scorecard.categories.forEach((category) => {
+        const section = document.createElement("div");
+        section.className = "card category-summary mb-3";
+        section.style.setProperty("--category-color", category.color);
+        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? "Recurring" : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
+        section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
+        section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
+        section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
+        details.appendChild(section);
+    });
+}

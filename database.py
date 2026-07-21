@@ -51,6 +51,31 @@ def initialize_database():
     )
     """)
 
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS scorecards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        total_spending REAL NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS scorecard_expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scorecard_id INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        amount REAL NOT NULL,
+        category TEXT NOT NULL,
+        recurring INTEGER DEFAULT 0,
+        FOREIGN KEY(scorecard_id)
+            REFERENCES scorecards(id)
+    )
+    """)
+
     conn.commit()
     conn.close()
     migrate_categories()

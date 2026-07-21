@@ -15,7 +15,11 @@
             <p class="text-uppercase text-muted small mb-1">Local budget workspace</p>
             <h1 class="mb-0">{{ month_name }} {{ month["year"] }}</h1>
         </div>
-        <button class="btn btn-primary" onclick="editIncome()"><i class="bi bi-pencil-square me-1"></i>Edit income</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-secondary" onclick="showScorecards()"><i class="bi bi-archive me-1"></i>View Scorecards</button>
+            <button class="btn btn-success" onclick="openSaveScorecardModal()"><i class="bi bi-bookmark-check me-1"></i>Save Scorecard</button>
+            <button class="btn btn-primary" onclick="editIncome()"><i class="bi bi-pencil-square me-1"></i>Edit income</button>
+        </div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -84,6 +88,61 @@
                     <thead><tr><th>Description</th><th>Amount</th><th>Recurring</th><th class="text-end">Actions</th></tr></thead>
                     <tbody id="expenseTable"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="saveScorecardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Scorecard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Save the current spending totals and detailed category charges. After saving, only recurring charges remain in the active workspace.</p>
+                <div class="mb-3">
+                    <label for="scorecardName" class="form-label">Scorecard name</label>
+                    <input id="scorecardName" class="form-control" placeholder="July 2026">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="scorecardStartDate" class="form-label">Start date</label>
+                        <input id="scorecardStartDate" class="form-control" type="date">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="scorecardEndDate" class="form-label">End date</label>
+                        <input id="scorecardEndDate" class="form-control" type="date">
+                    </div>
+                </div>
+                <div id="scorecardSaveError" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveScorecard()">Save Scorecard</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="scorecardsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Saved Scorecards</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div id="scorecardList" class="list-group"></div>
+                    </div>
+                    <div class="col-lg-8">
+                        <div id="scorecardDetails" class="scorecard-details text-muted">Select a scorecard to view totals and detailed charges.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
