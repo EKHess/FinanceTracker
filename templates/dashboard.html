@@ -19,6 +19,7 @@
             <button class="btn btn-outline-secondary" onclick="showScorecards()"><i class="bi bi-archive me-1"></i>View Scorecards</button>
             <button class="btn btn-outline-secondary" onclick="exportDatabase()"><i class="bi bi-download me-1"></i>Export Database</button>
             <button class="btn btn-outline-secondary" onclick="openImportDatabaseModal()"><i class="bi bi-upload me-1"></i>Import Database</button>
+
             <button class="btn btn-success" onclick="openSaveScorecardModal()"><i class="bi bi-bookmark-check me-1"></i>Save Scorecard</button>
             <button class="btn btn-primary" onclick="editIncome()"><i class="bi bi-pencil-square me-1"></i>Edit income</button>
         </div>
@@ -171,6 +172,7 @@
         </div>
     </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>window.CATEGORY_CONFIG = {{ categories|tojson }};</script>

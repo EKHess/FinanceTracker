@@ -301,6 +301,7 @@ function renderScorecardDetails(scorecard) {
             </div>
         </div>`;
 
+
     scorecard.categories.forEach((category) => {
         const section = document.createElement("div");
         section.className = "card category-summary mb-3";

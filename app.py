@@ -20,6 +20,7 @@ from services.scorecards import (
     update_scorecard_expense,
 )
 
+
 app = Flask(__name__)
 
 initialize_database()
@@ -131,7 +132,6 @@ def api_create_scorecard():
         return jsonify({"error": str(exc)}), 400
     return jsonify(scorecard), 201
 
-
 @app.route("/api/scorecards/<int:id>", methods=["DELETE"])
 def api_delete_scorecard(id):
     if not delete_scorecard(id):
@@ -232,7 +232,6 @@ def api_import_database():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify({"success": True})
-
 
 if __name__ == "__main__":
     app.run(debug=True)
