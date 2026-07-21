@@ -262,7 +262,7 @@ function renderScorecardDetails(scorecard) {
             </div>
             <div class="text-end">
                 <h4>${money.format(scorecard.total_spending)}</h4>
-                <button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
+                <a class="btn btn-sm btn-outline-primary me-1" href="/api/scorecards/${scorecard.id}/export.csv"><i class="bi bi-filetype-csv me-1"></i>Export to CSV</a><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
             </div>
         </div>
         <div class="card mb-3 scorecard-editor-card">
@@ -311,4 +311,43 @@ function renderScorecardDetails(scorecard) {
         section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
         details.appendChild(section);
     });
+}
+
+
+function exportDatabase() {
+    window.location.href = "/api/database/export";
+}
+
+function openImportDatabaseModal() {
+    document.getElementById("databaseImportFile").value = "";
+    document.getElementById("databaseImportError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("importDatabaseModal")).show();
+}
+
+async function importDatabase() {
+    const fileInput = document.getElementById("databaseImportFile");
+    const error = document.getElementById("databaseImportError");
+    error.classList.add("d-none");
+
+    if (!fileInput.files.length) {
+        error.textContent = "Choose a database file to import.";
+        error.classList.remove("d-none");
+        return;
+    }
+
+    if (!confirm("Import this database? This replaces the current app database.")) return;
+
+    const formData = new FormData();
+    formData.append("database", fileInput.files[0]);
+    const response = await fetch("/api/database/import", { method: "POST", body: formData });
+    const data = await response.json();
+
+    if (!response.ok) {
+        error.textContent = data.error || `Request failed: ${response.status}`;
+        error.classList.remove("d-none");
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById("importDatabaseModal")).hide();
+    await loadDashboard();
 }

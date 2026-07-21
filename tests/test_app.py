@@ -216,3 +216,56 @@ def test_delete_scorecard_removes_it_and_its_saved_charges(tmp_path, monkeypatch
     assert client.delete(f"/api/scorecards/{scorecard['id']}").status_code == 200
     assert client.get(f"/api/scorecards/{scorecard['id']}").status_code == 404
     assert client.get("/api/scorecards").get_json() == []
+
+
+def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import database
+    import app as app_module
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    client = app_module.app.test_client()
+    scorecard = _create_scorecard_with_one_charge(client)
+
+    response = client.get(f"/api/scorecards/{scorecard['id']}/export.csv")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert "attachment" in response.headers["Content-Disposition"]
+    csv_text = response.data.decode()
+    assert "Scorecard,July 2026" in csv_text
+    assert "Fixed Costs,Rent,1000.0,Yes" in csv_text
+
+
+def test_database_export_can_be_imported_to_restore_state(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import io
+    import database
+    import app as app_module
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    client = app_module.app.test_client()
+    scorecard = _create_scorecard_with_one_charge(client)
+    exported = client.get("/api/database/export")
+    assert exported.status_code == 200
+    assert "attachment" in exported.headers["Content-Disposition"]
+
+    assert client.delete(f"/api/scorecards/{scorecard['id']}").status_code == 200
+    assert client.get("/api/scorecards").get_json() == []
+
+    imported = client.post(
+        "/api/database/import",
+        data={"database": (io.BytesIO(exported.data), "finance-tracker.db")},
+        content_type="multipart/form-data",
+    )
+
+    assert imported.status_code == 200
+    restored = client.get("/api/scorecards").get_json()
+    assert len(restored) == 1
+    assert restored[0]["name"] == "July 2026"
