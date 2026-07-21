@@ -6,4 +6,15 @@ h1 { font-weight: 700; }
 .category-card:hover { transform: translateY(-3px); box-shadow: 0 .75rem 1.5rem rgba(15, 23, 42, .12) !important; }
 .category-card h5 { font-weight: 700; }
 .scorecard-details .category-summary { border-left: .35rem solid var(--category-color); }
-.scorecard-details .expense-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: .75rem; }
+.scorecard-details .expense-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: .75rem; align-items: center; }
+.scorecard-editor-card { background: #fbfcff; }
+.scorecard-expense-form { border-top: 1px solid #dee2e6; padding-top: 1rem; }
+.scorecard-expense-form .form-label { color: #6c757d; font-size: .85rem; font-weight: 600; margin-bottom: .35rem; }
+.scorecard-form-actions .btn { min-width: 6rem; }
+
+@media (max-width: 576px) {
+    .scorecard-details .expense-row { grid-template-columns: 1fr; }
+    .scorecard-details .expense-row .text-end { text-align: left !important; }
+    .scorecard-form-actions { width: 100%; }
+    .scorecard-form-actions .btn { flex: 1 1 0; }
+}

@@ -254,7 +254,52 @@ function renderScorecardDetails(scorecard) {
     editingScorecardExpenseId = null;
     const details = document.getElementById("scorecardDetails");
     details.classList.remove("text-muted");
-    details.innerHTML = `<div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3"><div><h4>${escapeHtml(scorecard.name)}</h4><div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div></div><div class="text-end"><h4>${money.format(scorecard.total_spending)}</h4><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button></div></div><div class="card mb-3"><div class="card-body"><div class="d-flex justify-content-between align-items-center"><h5 class="mb-0">Saved charges</h5><button class="btn btn-sm btn-success" onclick="showScorecardExpenseForm()">+ Add Charge</button></div><div id="scorecardExpenseForm" class="row g-2 align-items-center mt-2 d-none"><div class="col-12"><strong id="scorecardExpenseFormTitle">Add saved charge</strong></div><div class="col-md-4"><input id="scorecardExpenseDescription" class="form-control" placeholder="Description"></div><div class="col-md-2"><input id="scorecardExpenseAmount" class="form-control" type="number" step="0.01" min="0" placeholder="Amount"></div><div class="col-md-3"><select id="scorecardExpenseCategory" class="form-select">${categoryOptions()}</select></div><div class="col-md-1"><div class="form-check"><input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox"><label class="form-check-label">Recurring</label></div></div><div class="col-md-2 d-flex gap-2"><button class="btn btn-primary" onclick="saveScorecardExpense()">Save</button><button class="btn btn-outline-secondary" onclick="hideScorecardExpenseForm()">Cancel</button></div></div></div></div>`;
+    details.innerHTML = `
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+                <h4>${escapeHtml(scorecard.name)}</h4>
+                <div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div>
+            </div>
+            <div class="text-end">
+                <h4>${money.format(scorecard.total_spending)}</h4>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
+            </div>
+        </div>
+        <div class="card mb-3 scorecard-editor-card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0">Saved charges</h5>
+                    <button class="btn btn-sm btn-success" onclick="showScorecardExpenseForm()">+ Add Charge</button>
+                </div>
+                <div id="scorecardExpenseForm" class="scorecard-expense-form mt-3 d-none">
+                    <div class="fw-bold" id="scorecardExpenseFormTitle">Add saved charge</div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-lg-5">
+                            <label for="scorecardExpenseDescription" class="form-label">Description</label>
+                            <input id="scorecardExpenseDescription" class="form-control" placeholder="Description">
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="scorecardExpenseAmount" class="form-label">Amount</label>
+                            <input id="scorecardExpenseAmount" class="form-control" type="number" step="0.01" min="0" placeholder="Amount">
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="scorecardExpenseCategory" class="form-label">Category</label>
+                            <select id="scorecardExpenseCategory" class="form-select">${categoryOptions()}</select>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div class="form-check mb-0">
+                                <input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox">
+                                <label class="form-check-label" for="scorecardExpenseRecurring">Recurring charge</label>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 scorecard-form-actions">
+                                <button class="btn btn-primary" onclick="saveScorecardExpense()">Save</button>
+                                <button class="btn btn-outline-secondary" onclick="hideScorecardExpenseForm()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
 
     scorecard.categories.forEach((category) => {
         const section = document.createElement("div");
