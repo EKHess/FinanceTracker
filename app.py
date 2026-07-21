@@ -7,6 +7,7 @@ from database import get_current_month, initialize_database
 from services.expenses import add_expense, delete_expense, get_expenses, update_expense
 from services.finance import dashboard_summary
 from services.months import get_category_totals, get_month_summary, update_income
+from services.scorecards import create_scorecard, get_scorecard, list_scorecards
 
 app = Flask(__name__)
 
@@ -90,6 +91,34 @@ def api_update_expense(id):
 def api_delete_expense(id):
     delete_expense(id)
     return jsonify({"success": True})
+
+
+@app.route("/api/scorecards")
+def api_scorecards():
+    return jsonify(list_scorecards())
+
+
+@app.route("/api/scorecards/<int:id>")
+def api_scorecard(id):
+    scorecard = get_scorecard(id)
+    if scorecard is None:
+        return jsonify({"error": "Scorecard not found"}), 404
+    return jsonify(scorecard)
+
+
+@app.route("/api/scorecards", methods=["POST"])
+def api_create_scorecard():
+    data = request.get_json() or {}
+    try:
+        scorecard = create_scorecard(
+            get_current_month()["id"],
+            data.get("name", ""),
+            data.get("start_date", ""),
+            data.get("end_date", ""),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(scorecard), 201
 
 
 if __name__ == "__main__":

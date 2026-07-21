@@ -8,8 +8,9 @@ async function api(path, options = {}) {
         headers: { "Content-Type": "application/json", ...(options.headers || {}) },
         ...options,
     });
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Request failed: ${response.status}`);
+    return data;
 }
 
 async function loadDashboard() {
@@ -58,6 +59,12 @@ function renderChart(categories) {
         data: { labels, datasets: [{ data, backgroundColor: colors }] },
         options: { plugins: { legend: { position: "bottom" } }, cutout: "60%" },
     });
+}
+
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value;
+    return div.innerHTML;
 }
 
 async function editIncome() {
@@ -123,3 +130,73 @@ async function deleteExpense(id) {
 }
 
 loadDashboard();
+
+function openSaveScorecardModal() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+    document.getElementById("scorecardName").value = `${today.toLocaleString("default", { month: "long" })} ${year}`;
+    document.getElementById("scorecardStartDate").value = `${year}-${month}-01`;
+    document.getElementById("scorecardEndDate").value = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
+    document.getElementById("scorecardSaveError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("saveScorecardModal")).show();
+}
+
+async function saveScorecard() {
+    const error = document.getElementById("scorecardSaveError");
+    error.classList.add("d-none");
+    const payload = {
+        name: document.getElementById("scorecardName").value,
+        start_date: document.getElementById("scorecardStartDate").value,
+        end_date: document.getElementById("scorecardEndDate").value,
+    };
+
+    try {
+        await api("/api/scorecards", { method: "POST", body: JSON.stringify(payload) });
+        bootstrap.Modal.getInstance(document.getElementById("saveScorecardModal")).hide();
+        await loadDashboard();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
+}
+
+async function showScorecards() {
+    const modal = new bootstrap.Modal(document.getElementById("scorecardsModal"));
+    modal.show();
+    const scorecards = await api("/api/scorecards");
+    renderScorecardList(scorecards);
+}
+
+function renderScorecardList(scorecards) {
+    const list = document.getElementById("scorecardList");
+    list.innerHTML = "";
+    if (!scorecards.length) {
+        list.innerHTML = '<div class="text-muted">No scorecards saved yet.</div>';
+        return;
+    }
+    scorecards.forEach((scorecard) => {
+        const button = document.createElement("button");
+        button.className = "list-group-item list-group-item-action";
+        button.innerHTML = `<div class="fw-bold">${escapeHtml(scorecard.name)}</div><small>${scorecard.start_date} – ${scorecard.end_date}</small><div>${money.format(scorecard.total_spending)}</div>`;
+        button.addEventListener("click", () => loadScorecardDetails(scorecard.id));
+        list.appendChild(button);
+    });
+}
+
+async function loadScorecardDetails(id) {
+    const scorecard = await api(`/api/scorecards/${id}`);
+    const details = document.getElementById("scorecardDetails");
+    details.classList.remove("text-muted");
+    details.innerHTML = `<div class="d-flex justify-content-between align-items-start mb-3"><div><h4>${escapeHtml(scorecard.name)}</h4><div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div></div><h4>${money.format(scorecard.total_spending)}</h4></div>`;
+
+    scorecard.categories.forEach((category) => {
+        const section = document.createElement("div");
+        section.className = "card category-summary mb-3";
+        section.style.setProperty("--category-color", category.color);
+        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? "Recurring" : "One-time"}</span><strong>${money.format(expense.amount)}</strong></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
+        section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
+        details.appendChild(section);
+    });
+}
