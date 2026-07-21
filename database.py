@@ -1,4 +1,6 @@
+import shutil
 import sqlite3
+import tempfile
 from pathlib import Path
 from datetime import datetime
 
@@ -98,6 +100,39 @@ def migrate_categories():
         )
     conn.commit()
     conn.close()
+
+
+def validate_database_file(path):
+    required_tables = {"months", "expenses", "scorecards", "scorecard_expenses"}
+    try:
+        conn = sqlite3.connect(path)
+        quick_check = conn.execute("PRAGMA quick_check").fetchone()[0]
+        if quick_check != "ok":
+            return False
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
+        tables = {row[0] for row in rows}
+        conn.close()
+    except sqlite3.DatabaseError:
+        return False
+
+    return required_tables.issubset(tables)
+
+
+def import_database_file(uploaded_file):
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as temp_file:
+        temp_path = Path(temp_file.name)
+        uploaded_file.save(temp_file)
+
+    try:
+        if not validate_database_file(temp_path):
+            raise ValueError("Uploaded file is not a valid FinanceTracker database")
+        DATABASE_FOLDER.mkdir(exist_ok=True)
+        shutil.copyfile(temp_path, DATABASE)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+    initialize_database()
+
 
 def get_current_month():
 

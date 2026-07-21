@@ -165,8 +165,7 @@ async function saveScorecard() {
 async function showScorecards() {
     const modal = new bootstrap.Modal(document.getElementById("scorecardsModal"));
     modal.show();
-    const scorecards = await api("/api/scorecards");
-    renderScorecardList(scorecards);
+    await refreshScorecardList();
 }
 
 function renderScorecardList(scorecards) {
@@ -187,16 +186,169 @@ function renderScorecardList(scorecards) {
 
 async function loadScorecardDetails(id) {
     const scorecard = await api(`/api/scorecards/${id}`);
+    renderScorecardDetails(scorecard);
+}
+
+
+let activeScorecardId = null;
+let editingScorecardExpenseId = null;
+
+function categoryOptions(selectedCategory = "") {
+    return Object.entries(window.CATEGORY_CONFIG).map(([id, category]) => `<option value="${id}" ${id === selectedCategory ? "selected" : ""}>${category.label}</option>`).join("");
+}
+
+function showScorecardExpenseForm(expense = null) {
+    editingScorecardExpenseId = expense?.id || null;
+    const form = document.getElementById("scorecardExpenseForm");
+    form.classList.remove("d-none");
+    document.getElementById("scorecardExpenseFormTitle").textContent = expense ? "Edit saved charge" : "Add saved charge";
+    document.getElementById("scorecardExpenseDescription").value = expense?.description || "";
+    document.getElementById("scorecardExpenseAmount").value = expense?.amount || "";
+    document.getElementById("scorecardExpenseCategory").value = expense?.category || "fixed";
+    document.getElementById("scorecardExpenseRecurring").checked = Boolean(expense?.recurring);
+}
+
+function hideScorecardExpenseForm() {
+    editingScorecardExpenseId = null;
+    document.getElementById("scorecardExpenseForm").classList.add("d-none");
+}
+
+async function saveScorecardExpense() {
+    const payload = {
+        description: document.getElementById("scorecardExpenseDescription").value,
+        amount: parseFloat(document.getElementById("scorecardExpenseAmount").value) || 0,
+        category: document.getElementById("scorecardExpenseCategory").value,
+        recurring: document.getElementById("scorecardExpenseRecurring").checked,
+    };
+    const path = editingScorecardExpenseId ? `/api/scorecards/${activeScorecardId}/expenses/${editingScorecardExpenseId}` : `/api/scorecards/${activeScorecardId}/expenses`;
+    const method = editingScorecardExpenseId ? "PUT" : "POST";
+    const scorecard = await api(path, { method, body: JSON.stringify(payload) });
+    renderScorecardDetails(scorecard);
+    await refreshScorecardList();
+}
+
+async function deleteScorecardExpense(expenseId) {
+    if (!confirm("Delete this saved charge?")) return;
+    const scorecard = await api(`/api/scorecards/${activeScorecardId}/expenses/${expenseId}`, { method: "DELETE" });
+    renderScorecardDetails(scorecard);
+    await refreshScorecardList();
+}
+
+async function deleteActiveScorecard() {
+    if (!activeScorecardId) return;
+    if (!confirm("Delete this scorecard? This action cannot be undone.")) return;
+    await api(`/api/scorecards/${activeScorecardId}`, { method: "DELETE" });
+    activeScorecardId = null;
+    document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
+    document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+    await refreshScorecardList();
+}
+
+async function refreshScorecardList() {
+    const scorecards = await api("/api/scorecards");
+    renderScorecardList(scorecards);
+}
+
+function renderScorecardDetails(scorecard) {
+    activeScorecardId = scorecard.id;
+    editingScorecardExpenseId = null;
     const details = document.getElementById("scorecardDetails");
     details.classList.remove("text-muted");
-    details.innerHTML = `<div class="d-flex justify-content-between align-items-start mb-3"><div><h4>${escapeHtml(scorecard.name)}</h4><div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div></div><h4>${money.format(scorecard.total_spending)}</h4></div>`;
+    details.innerHTML = `
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+                <h4>${escapeHtml(scorecard.name)}</h4>
+                <div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div>
+            </div>
+            <div class="text-end">
+                <h4>${money.format(scorecard.total_spending)}</h4>
+                <a class="btn btn-sm btn-outline-primary me-1" href="/api/scorecards/${scorecard.id}/export.csv"><i class="bi bi-filetype-csv me-1"></i>Export to CSV</a><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
+            </div>
+        </div>
+        <div class="card mb-3 scorecard-editor-card">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0">Saved charges</h5>
+                    <button class="btn btn-sm btn-success" onclick="showScorecardExpenseForm()">+ Add Charge</button>
+                </div>
+                <div id="scorecardExpenseForm" class="scorecard-expense-form mt-3 d-none">
+                    <div class="fw-bold" id="scorecardExpenseFormTitle">Add saved charge</div>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-lg-5">
+                            <label for="scorecardExpenseDescription" class="form-label">Description</label>
+                            <input id="scorecardExpenseDescription" class="form-control" placeholder="Description">
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-3">
+                            <label for="scorecardExpenseAmount" class="form-label">Amount</label>
+                            <input id="scorecardExpenseAmount" class="form-control" type="number" step="0.01" min="0" placeholder="Amount">
+                        </div>
+                        <div class="col-12 col-sm-6 col-lg-4">
+                            <label for="scorecardExpenseCategory" class="form-label">Category</label>
+                            <select id="scorecardExpenseCategory" class="form-select">${categoryOptions()}</select>
+                        </div>
+                        <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                            <div class="form-check mb-0">
+                                <input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox">
+                                <label class="form-check-label" for="scorecardExpenseRecurring">Recurring charge</label>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 scorecard-form-actions">
+                                <button class="btn btn-primary" onclick="saveScorecardExpense()">Save</button>
+                                <button class="btn btn-outline-secondary" onclick="hideScorecardExpenseForm()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
 
     scorecard.categories.forEach((category) => {
         const section = document.createElement("div");
         section.className = "card category-summary mb-3";
         section.style.setProperty("--category-color", category.color);
-        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? "Recurring" : "One-time"}</span><strong>${money.format(expense.amount)}</strong></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
+        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? "Recurring" : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
         section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
+        section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
+        section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
         details.appendChild(section);
     });
+}
+
+
+function exportDatabase() {
+    window.location.href = "/api/database/export";
+}
+
+function openImportDatabaseModal() {
+    document.getElementById("databaseImportFile").value = "";
+    document.getElementById("databaseImportError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("importDatabaseModal")).show();
+}
+
+async function importDatabase() {
+    const fileInput = document.getElementById("databaseImportFile");
+    const error = document.getElementById("databaseImportError");
+    error.classList.add("d-none");
+
+    if (!fileInput.files.length) {
+        error.textContent = "Choose a database file to import.";
+        error.classList.remove("d-none");
+        return;
+    }
+
+    if (!confirm("Import this database? This replaces the current app database.")) return;
+
+    const formData = new FormData();
+    formData.append("database", fileInput.files[0]);
+    const response = await fetch("/api/database/import", { method: "POST", body: formData });
+    const data = await response.json();
+
+    if (!response.ok) {
+        error.textContent = data.error || `Request failed: ${response.status}`;
+        error.classList.remove("d-none");
+        return;
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById("importDatabaseModal")).hide();
+    await loadDashboard();
 }
