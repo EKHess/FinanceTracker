@@ -261,7 +261,7 @@ function showNewTaxRulesetForm() {
     document.getElementById("newRulesetCountry").value = document.getElementById("rulesetCountry").value || "Canada";
     document.getElementById("newRulesetRegion").value = document.getElementById("rulesetRegion").value || "ON";
     document.getElementById("newRulesetYear").value = document.getElementById("rulesetYear").value || new Date().getFullYear();
-    document.getElementById("newRulesetBrackets").innerHTML = taxBracketRow("new");
+    document.getElementById("ruleset-new").innerHTML = taxBracketRow("new");
     ["newRulesetType", "newRulesetCountry", "newRulesetRegion", "newRulesetYear"].forEach((id) => {
         document.getElementById(id).oninput = syncNewTaxRulesetForm;
     });

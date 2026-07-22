@@ -358,3 +358,17 @@ def test_tax_ruleset_crud_allows_future_updates(tmp_path, monkeypatch):
     assert updated.status_code == 200
     assert client.delete(f"/api/tax-rulesets/{ruleset['id']}").status_code == 200
     assert not any(item["region_code"] == "TP" for item in client.get("/api/tax-rulesets").get_json())
+
+
+def test_new_ruleset_brackets_use_shared_editor_target(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import database
+    import app as app_module
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    page = app_module.app.test_client().get("/").get_data(as_text=True)
+    assert 'id="ruleset-new"' in page
+    assert "addTaxBracketRow('new')" in page
