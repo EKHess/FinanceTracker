@@ -1,6 +1,6 @@
 # FinanceTracker
 
-FinanceTracker is a local Flask application for planning income and spending using the four-category framework popularized by Ramit Sethi:
+FinanceTracker is a local Flask application for planning income and spending using the four-category framework popularized by Ramit Sethi in his book *I Will Teach You To Be Rich*:
 
 - Fixed Costs
 - Investments
@@ -113,6 +113,9 @@ Canada's federal and ten provincial rulesets are seeded for 2026. Rulesets are s
 - Export scorecards as CSV.
 - Export or import the local SQLite database.
 
+## Installation
+There is no real installation for this project aside from simply cloning the repo to a location on your computer using `git clone`. 
+
 ## Run locally
 
 Requires Python 3 and `pip`.
@@ -124,7 +127,29 @@ python3 -m pip install -r requirements.txt
 python3 app.py
 ```
 
+Alternatively, if you're a `conda` user like me, you can create a safe, separate virtual environment for this project using:
+
+```bash
+$ conda env create -f environment.yml
+```
+
+Then actiavte it using:
+
+```bash
+$ conda activate FinanceTracker
+(FinanceTracker) $
+```
+
+Then you can launch the app using:
+
+```bash
+(FinanceTracker) $ python app.py
+```
+
 Open <http://127.0.0.1:5000> in a browser. Application data is stored locally in `data/finance.db`.
+
+> [!NOTE]
+> The use of the `python` or `python3` command depends entirely on your installation of Anaconda, Python and your OS. Double check which to use for your specific setup before launching. 
 
 ## Tests
 
