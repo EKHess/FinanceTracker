@@ -86,10 +86,8 @@ function selectedIncomeMode() {
 }
 
 async function openIncomeModal() {
-    const province = document.getElementById("taxProvince");
-    province.innerHTML = Object.entries(provinces).map(([code, name]) => `<option value="${code}">${name}</option>`).join("");
     document.querySelectorAll('input[name="incomeMode"]').forEach((input) => input.addEventListener("change", syncIncomeMode));
-    ["takeHomeIncome", "manualTaxRate", "grossAnnualIncome", "incomePeriodDuration", "incomePeriodUnit", "taxProvince", "taxYear"].forEach((id) => document.getElementById(id).addEventListener("input", updateIncomePreview));
+    ["takeHomeIncome", "manualTaxRate", "grossAnnualIncome", "incomePeriodDuration", "incomePeriodUnit"].forEach((id) => document.getElementById(id).addEventListener("input", updateIncomePreview));
     const profile = await api("/api/income");
     document.getElementById(profile.income_mode === "gross_tax" ? "incomeModeGross" : "incomeModeSimple").checked = true;
     document.getElementById("takeHomeIncome").value = profile.income || 0;
@@ -97,12 +95,38 @@ async function openIncomeModal() {
     document.getElementById("incomePeriodDuration").value = profile.income_period_duration || 1;
     document.getElementById("incomePeriodUnit").value = profile.income_period_unit || "month";
     document.getElementById("grossAnnualIncome").value = profile.gross_annual_income || "";
-    document.getElementById("taxProvince").value = profile.tax_region_code || "ON";
-    document.getElementById("taxYear").value = profile.tax_year || 2026;
-    syncIncomeMode();
     taxRulesets = await api("/api/tax-rulesets");
+    renderIncomeTaxSelectors(profile.tax_country || "Canada", profile.tax_region_code || "ON", profile.tax_year || 2026);
     renderTaxRulesetSelectors();
+    syncIncomeMode();
     new bootstrap.Modal(document.getElementById("incomeModal")).show();
+}
+
+function renderIncomeTaxSelectors(preferredCountry, preferredRegion, preferredYear) {
+    const countrySelect = document.getElementById("taxCountry");
+    const regionSelect = document.getElementById("taxProvince");
+    const yearSelect = document.getElementById("taxYear");
+    const countries = [...new Set(taxRulesets.map((ruleset) => ruleset.country))].sort();
+    countrySelect.innerHTML = countries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join("");
+    countrySelect.value = countries.includes(preferredCountry) ? preferredCountry : countries[0] || "";
+
+    const syncRegions = (requestedRegion = regionSelect.value || preferredRegion) => {
+        const regionalRules = taxRulesets.filter((ruleset) => ruleset.country === countrySelect.value && ruleset.region_code !== "FED");
+        const uniqueRegions = [...new Map(regionalRules.map((ruleset) => [ruleset.region_code, ruleset])).values()];
+        regionSelect.innerHTML = `<option value="FED">Federal only</option>${uniqueRegions.map((ruleset) => `<option value="${escapeHtml(ruleset.region_code)}">${escapeHtml(ruleset.region_name)}</option>`).join("")}`;
+        regionSelect.value = ["FED", ...uniqueRegions.map((ruleset) => ruleset.region_code)].includes(requestedRegion) ? requestedRegion : "FED";
+        syncYears(preferredYear);
+    };
+    const syncYears = (requestedYear = yearSelect.value || preferredYear) => {
+        const years = [...new Set(taxRulesets.filter((ruleset) => ruleset.country === countrySelect.value && ["FED", regionSelect.value].includes(ruleset.region_code)).map((ruleset) => Number(ruleset.tax_year)))].sort((a, b) => b - a);
+        yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
+        yearSelect.value = years.includes(Number(requestedYear)) ? String(requestedYear) : String(years[0] || "");
+        updateIncomePreview();
+    };
+    countrySelect.onchange = () => syncRegions("FED");
+    regionSelect.onchange = () => syncYears();
+    yearSelect.onchange = updateIncomePreview;
+    syncRegions(preferredRegion);
 }
 
 function syncIncomeMode() {
@@ -123,8 +147,9 @@ function updateIncomePreview() {
         const unit = document.getElementById("incomePeriodUnit").value;
         const year = parseInt(document.getElementById("taxYear").value, 10) || 2026;
         const regionCode = document.getElementById("taxProvince").value;
-        const federal = findRuleset("Canada", "FED", year);
-        const provincial = findRuleset("Canada", regionCode, year);
+        const country = document.getElementById("taxCountry").value;
+        const federal = findRuleset(country, "FED", year);
+        const provincial = regionCode === "FED" ? null : findRuleset(country, regionCode, year);
         const tax = calculateTax(gross, federal?.brackets || []) + calculateTax(gross, provincial?.brackets || []);
         preview = (gross - tax) / (({ day: 365, week: 52, month: 12, year: 1 }[unit] || 12) / duration);
     }
@@ -150,7 +175,7 @@ async function saveIncomeProfile() {
         mode: selectedIncomeMode(),
         take_home_income: parseFloat(document.getElementById("takeHomeIncome").value) || 0,
         manual_tax_rate: parseFloat(document.getElementById("manualTaxRate").value) || 0,
-        country: "Canada",
+        country: document.getElementById("taxCountry").value,
         region_code: document.getElementById("taxProvince").value,
         tax_year: parseInt(document.getElementById("taxYear").value, 10) || 2026,
         gross_annual_income: parseFloat(document.getElementById("grossAnnualIncome").value) || 0,
@@ -237,16 +262,20 @@ function parseDisplayedBrackets(id) {
 
 async function saveDisplayedTaxRuleset(id) {
     const ruleset = taxRulesets.find((item) => item.id === id);
+    const selectedIncomeRules = [document.getElementById("taxCountry").value, document.getElementById("taxProvince").value, document.getElementById("taxYear").value];
     await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ ...ruleset, brackets: parseDisplayedBrackets(id) }) });
     taxRulesets = await api("/api/tax-rulesets");
+    renderIncomeTaxSelectors(...selectedIncomeRules);
     renderTaxRulesetSelectors();
     updateIncomePreview();
 }
 
 async function deleteTaxRuleset(id) {
     if (!confirm("Delete this tax ruleset?")) return;
+    const selectedIncomeRules = [document.getElementById("taxCountry").value, document.getElementById("taxProvince").value, document.getElementById("taxYear").value];
     await api(`/api/tax-rulesets/${id}`, { method: "DELETE" });
     taxRulesets = await api("/api/tax-rulesets");
+    renderIncomeTaxSelectors(...selectedIncomeRules);
     renderTaxRulesetSelectors();
     updateIncomePreview();
 }
@@ -314,6 +343,7 @@ async function saveNewTaxRuleset() {
     try {
         await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify(payload) });
         taxRulesets = await api("/api/tax-rulesets");
+        renderIncomeTaxSelectors(identity.country, identity.regionCode, identity.taxYear);
         cancelNewTaxRuleset();
         renderTaxRulesetSelectors();
         document.getElementById("rulesetCountry").value = identity.country;

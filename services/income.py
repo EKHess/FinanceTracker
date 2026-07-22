@@ -97,7 +97,7 @@ def save_income_profile(month_id, payload):
         region = payload.get("region_code") or "ON"
         year = int(payload.get("tax_year") or 2026)
         fed = _rules(conn, country, "FED", year)
-        prov = _rules(conn, country, region, year)
+        prov = [] if region == "FED" else _rules(conn, country, region, year)
         tax = calculate_tax(gross, fed) + calculate_tax(gross, prov)
         period_income = round((gross - tax) / (PERIODS_PER_YEAR[unit] / duration), 2)
         tax_rate = round((tax / gross) * 100, 2) if gross else 0
