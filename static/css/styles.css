@@ -1,6 +1,7 @@
 body { background: #f5f6fa; }
 h1 { font-weight: 700; }
 .metric-card, .category-card { border: 0; border-radius: 1rem; }
+.metric-card { min-height: 9rem; }
 .metric-card span { color: #6c757d; font-size: .9rem; text-transform: uppercase; }
 .category-card { cursor: pointer; transition: transform .2s, box-shadow .2s; }
 .category-card:hover { transform: translateY(-3px); box-shadow: 0 .75rem 1.5rem rgba(15, 23, 42, .12) !important; }
@@ -17,4 +18,24 @@ h1 { font-weight: 700; }
     .scorecard-details .expense-row .text-end { text-align: left !important; }
     .scorecard-form-actions { width: 100%; }
     .scorecard-form-actions .btn { flex: 1 1 0; }
+}
+
+.income-option {
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    padding: 1rem 1rem 1rem 2.5rem;
+    height: 100%;
+    background: #fff;
+}
+
+.income-option:has(.form-check-input:checked) {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.12);
+}
+
+.income-edit-button {
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 3rem;
+    font-size: 1.25rem;
 }

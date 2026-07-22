@@ -21,12 +21,11 @@
             <button class="btn btn-outline-secondary" onclick="openImportDatabaseModal()"><i class="bi bi-upload me-1"></i>Import Database</button>
 
             <button class="btn btn-success" onclick="openSaveScorecardModal()"><i class="bi bi-bookmark-check me-1"></i>Save Scorecard</button>
-            <button class="btn btn-primary" onclick="editIncome()"><i class="bi bi-pencil-square me-1"></i>Edit income</button>
         </div>
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span>Income</span><h2 id="income">$0.00</h2></div></div></div>
+        <div class="col-md-4"><div class="card metric-card h-100"><div class="card-body d-flex align-items-center justify-content-between"><div><span>Income</span><h2 id="income">$0.00</h2><small id="incomePeriod" class="text-muted">every 1 month</small></div><button class="btn btn-outline-primary rounded-circle income-edit-button" onclick="openIncomeModal()" aria-label="Edit income"><i class="bi bi-pencil-square"></i></button></div></div></div>
         <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span>Spending</span><h2 id="spending">$0.00</h2></div></div></div>
         <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span>Surplus</span><h2 id="surplus" class="text-success">$0.00</h2></div></div></div>
     </div>
@@ -96,6 +95,53 @@
     </div>
 </div>
 
+<div class="modal fade" id="incomeModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Edit Income</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6"><div class="form-check income-option"><input class="form-check-input" type="radio" name="incomeMode" id="incomeModeSimple" value="simple" checked><label class="form-check-label fw-bold" for="incomeModeSimple">Simple take-home income</label><div class="text-muted small">Enter pay for your chosen period and optional tax rate. Defaults to 0% tax.</div></div></div>
+                    <div class="col-md-6"><div class="form-check income-option"><input class="form-check-input" type="radio" name="incomeMode" id="incomeModeGross" value="gross_tax"><label class="form-check-label fw-bold" for="incomeModeGross">Gross annual income with tax brackets</label><div class="text-muted small">Apply available federal and provincial/regional rulesets.</div></div></div>
+                </div>
+                <div id="simpleIncomeFields" class="card mb-3"><div class="card-body row g-3"><div class="col-md-4"><label class="form-label" for="takeHomeIncome">Take-home income before manual tax</label><input id="takeHomeIncome" class="form-control" type="number" min="0" step="0.01"></div><div class="col-md-4"><label class="form-label" for="manualTaxRate">Manual tax rate (%)</label><input id="manualTaxRate" class="form-control" type="number" min="0" step="0.01" value="0"></div></div></div>
+                <div id="grossIncomeFields" class="card mb-3 d-none"><div class="card-body row g-3"><div class="col-md-3"><label class="form-label" for="taxCountry">Country</label><select id="taxCountry" class="form-select"></select></div><div class="col-md-3"><label class="form-label" for="taxProvince">Province/region</label><select id="taxProvince" class="form-select"></select></div><div class="col-md-3"><label class="form-label" for="taxYear">Tax year</label><select id="taxYear" class="form-select"></select></div><div class="col-md-3"><label class="form-label" for="grossAnnualIncome">Annual gross income</label><input id="grossAnnualIncome" class="form-control" type="number" min="0" step="0.01"></div></div></div>
+                <div class="card mb-3"><div class="card-body row g-3"><div class="col-md-4"><label class="form-label" for="incomePeriodDuration">Pay period duration</label><input id="incomePeriodDuration" class="form-control" type="number" min="1" step="1" value="1"></div><div class="col-md-4"><label class="form-label" for="incomePeriodUnit">Pay period unit</label><select id="incomePeriodUnit" class="form-select"><option value="day">day</option><option value="week">week</option><option value="month" selected>month</option><option value="year">year</option></select></div><div class="col-md-4"><label class="form-label">Calculated take-home</label><div id="incomePreview" class="fs-4 fw-bold">$0.00</div></div><div id="grossTaxBreakdown" class="col-12 d-none"></div></div></div>
+                <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#taxRulesEditor">View/edit tax rulesets</button>
+                <div class="collapse mt-3" id="taxRulesEditor">
+                    <div class="card"><div class="card-body">
+                        <div id="taxRulesBrowser">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h6 class="mb-0">Tax rulesets</h6><button class="btn btn-sm btn-outline-primary" onclick="showNewTaxRulesetForm()">Add ruleset</button></div>
+                        <div class="row g-3 align-items-end mb-3">
+                            <div class="col-md-4"><label class="form-label" for="rulesetCountry">Country</label><select id="rulesetCountry" class="form-select"></select></div>
+                            <div class="col-md-4"><label class="form-label" for="rulesetRegion">Province/region</label><select id="rulesetRegion" class="form-select"></select></div>
+                            <div class="col-md-4"><label class="form-label" for="rulesetYear">Tax year</label><select id="rulesetYear" class="form-select"></select></div>
+                        </div>
+                        <div id="taxRulesDetail"></div>
+                        </div>
+                        <div id="newTaxRulesetForm" class="d-none">
+                            <div class="d-flex justify-content-between align-items-center mb-3"><div><h6 class="mb-1">Create a tax ruleset</h6><p class="text-muted small mb-0">Set its scope, then add the applicable tax brackets.</p></div><button class="btn btn-sm btn-outline-secondary" onclick="cancelNewTaxRuleset()">Cancel</button></div>
+                            <div class="row g-3">
+                                <div class="col-md-6"><label class="form-label" for="newRulesetType">Ruleset type</label><select id="newRulesetType" class="form-select"><option value="federal">Federal</option><option value="regional">Provincial/regional</option></select></div>
+                                <div class="col-md-6"><label class="form-label" for="newRulesetName">Ruleset name</label><input id="newRulesetName" class="form-control" placeholder="e.g. Federal or Ontario"></div>
+                                <div class="col-md-4"><label class="form-label" for="newRulesetCountry">Country</label><input id="newRulesetCountry" class="form-control" value="Canada"></div>
+                                <div id="newRulesetRegionGroup" class="col-md-4"><label class="form-label" for="newRulesetRegion">Province/region</label><select id="newRulesetRegion" class="form-select"></select></div>
+                                <div class="col-md-4"><label class="form-label" for="newRulesetYear">Tax year</label><input id="newRulesetYear" class="form-control" type="number" min="1900" value="2026"></div>
+                                <div class="col-12"><div class="border rounded p-3"><div class="form-check form-switch"><input id="newRulesetCreditEnabled" class="form-check-input" type="checkbox" role="switch"><label class="form-check-label fw-semibold" for="newRulesetCreditEnabled">Apply a basic personal amount</label></div><div id="newRulesetCreditAmountGroup" class="mt-2 d-none"><label class="form-label" for="newRulesetCreditAmount">Annual basic personal amount</label><div class="input-group"><span class="input-group-text">$</span><input id="newRulesetCreditAmount" class="form-control" type="number" min="0" step="0.01" value="0"></div><div class="form-text">This amount is deducted from gross income before the ruleset's tax brackets are applied.</div></div></div></div>
+                            </div>
+                            <div id="newRulesetWarning" class="alert alert-warning py-2 mt-3 d-none" role="status"></div>
+                            <div class="table-responsive mt-3"><table class="table table-sm align-middle"><thead><tr><th>From</th><th>Up to</th><th>Tax rate %</th><th></th></tr></thead><tbody id="ruleset-new"></tbody></table></div>
+                            <div class="d-flex flex-wrap gap-2"><button class="btn btn-sm btn-outline-secondary" onclick="addTaxBracketRow('new')">Add bracket</button><button class="btn btn-primary" onclick="saveNewTaxRuleset()">Save Ruleset</button></div>
+                            <div id="newRulesetError" class="alert alert-danger py-2 mt-3 d-none"></div>
+                        </div>
+                    </div></div>
+                </div>
+                <div id="incomeError" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="saveIncomeProfile()">Save income</button></div>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="saveScorecardModal" tabindex="-1">
     <div class="modal-dialog">

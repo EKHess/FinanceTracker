@@ -10,6 +10,7 @@ from database import get_current_month, import_database_file, initialize_databas
 from services.expenses import add_expense, delete_expense, get_expenses, update_expense
 from services.finance import dashboard_summary
 from services.months import get_category_totals, get_month_summary, update_income
+from services.income import get_income_profile, get_tax_rulesets, save_income_profile
 from services.scorecards import (
     add_scorecard_expense,
     create_scorecard,
@@ -54,10 +55,73 @@ def api_summary():
     return jsonify(get_month_summary(month["id"]))
 
 
+@app.route("/api/income")
+def api_income_profile():
+    return jsonify(get_income_profile(get_current_month()["id"]))
+
+
 @app.route("/api/income", methods=["POST"])
 def api_income():
     data = request.get_json() or {}
-    update_income(get_current_month()["id"], float(data.get("income", 0)))
+    if set(data.keys()) <= {"income"}:
+        update_income(get_current_month()["id"], float(data.get("income", 0)))
+        return jsonify({"success": True})
+    return jsonify(save_income_profile(get_current_month()["id"], data))
+
+
+@app.route("/api/tax-rulesets")
+def api_tax_rulesets():
+    return jsonify(get_tax_rulesets())
+
+
+@app.route("/api/tax-rulesets", methods=["POST"])
+def api_create_tax_ruleset():
+    data = request.get_json() or {}
+    conn = database.get_connection()
+    country = data.get("country", "Canada").strip()
+    region_code = data.get("region_code", "").strip().upper()
+    tax_year = int(data.get("tax_year", 2026))
+    existing = conn.execute(
+        "SELECT id FROM tax_rulesets WHERE country=? AND region_code=? AND tax_year=?",
+        (country, region_code, tax_year),
+    ).fetchone()
+    if existing:
+        ruleset_id = existing["id"]
+        conn.execute(
+            "UPDATE tax_rulesets SET region_name=?, source_url=?, basic_personal_credit_enabled=?, basic_personal_credit_amount=? WHERE id=?",
+            (data.get("region_name", "").strip(), data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0), ruleset_id),
+        )
+        conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (ruleset_id,))
+    else:
+        cursor = conn.execute(
+            "INSERT INTO tax_rulesets(country, region_name, region_code, tax_year, source_url, basic_personal_credit_enabled, basic_personal_credit_amount) VALUES(?,?,?,?,?,?,?)",
+            (country, data.get("region_name", "").strip(), region_code, tax_year, data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0)),
+        )
+        ruleset_id = cursor.lastrowid
+    for bracket in data.get("brackets", []):
+        conn.execute("INSERT INTO tax_brackets(ruleset_id, lower_bound, upper_bound, rate) VALUES(?,?,?,?)", (ruleset_id, bracket.get("lower_bound", 0), bracket.get("upper_bound"), bracket.get("rate", 0)))
+    conn.commit(); conn.close()
+    return jsonify({"success": True, "id": ruleset_id, "overwritten": bool(existing)}), 200 if existing else 201
+
+
+@app.route("/api/tax-rulesets/<int:id>", methods=["PUT"])
+def api_update_tax_ruleset(id):
+    data = request.get_json() or {}
+    conn = database.get_connection()
+    conn.execute("UPDATE tax_rulesets SET country=?, region_name=?, region_code=?, tax_year=?, source_url=?, basic_personal_credit_enabled=?, basic_personal_credit_amount=? WHERE id=?", (data.get("country", "Canada"), data.get("region_name", ""), data.get("region_code", ""), int(data.get("tax_year", 2026)), data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0), id))
+    conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (id,))
+    for bracket in data.get("brackets", []):
+        conn.execute("INSERT INTO tax_brackets(ruleset_id, lower_bound, upper_bound, rate) VALUES(?,?,?,?)", (id, bracket.get("lower_bound", 0), bracket.get("upper_bound"), bracket.get("rate", 0)))
+    conn.commit(); conn.close()
+    return jsonify({"success": True})
+
+
+@app.route("/api/tax-rulesets/<int:id>", methods=["DELETE"])
+def api_delete_tax_ruleset(id):
+    conn = database.get_connection()
+    conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (id,))
+    conn.execute("DELETE FROM tax_rulesets WHERE id=?", (id,))
+    conn.commit(); conn.close()
     return jsonify({"success": True})
 
 
