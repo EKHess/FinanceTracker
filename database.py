@@ -102,6 +102,8 @@ def initialize_database():
         region_code TEXT NOT NULL,
         tax_year INTEGER NOT NULL,
         source_url TEXT,
+        basic_personal_credit_enabled INTEGER NOT NULL DEFAULT 0,
+        basic_personal_credit_amount REAL NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(country, region_code, tax_year)
     )
@@ -126,6 +128,8 @@ def initialize_database():
     _ensure_column(cursor, "months", "tax_country", "TEXT")
     _ensure_column(cursor, "months", "tax_region_code", "TEXT")
     _ensure_column(cursor, "months", "tax_year", "INTEGER")
+    _ensure_column(cursor, "tax_rulesets", "basic_personal_credit_enabled", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "tax_rulesets", "basic_personal_credit_amount", "REAL NOT NULL DEFAULT 0")
 
     conn.commit()
     conn.close()

@@ -64,6 +64,15 @@ def calculate_tax(income, brackets):
     return round(total, 2)
 
 
+def calculate_ruleset_tax(income, ruleset):
+    if not ruleset:
+        return {"gross_tax": 0.0, "credit": 0.0, "tax_owed": 0.0}
+    gross_tax = calculate_tax(income, ruleset["brackets"])
+    configured_credit = float(ruleset["basic_personal_credit_amount"] or 0) if ruleset["basic_personal_credit_enabled"] else 0
+    credit = round(min(gross_tax, configured_credit), 2)
+    return {"gross_tax": gross_tax, "credit": credit, "tax_owed": round(gross_tax - credit, 2)}
+
+
 def get_tax_rulesets():
     conn = get_connection()
     rows = conn.execute("SELECT * FROM tax_rulesets ORDER BY country, tax_year DESC, region_name").fetchall()
@@ -96,9 +105,9 @@ def save_income_profile(month_id, payload):
         country = payload.get("country") or "Canada"
         region = payload.get("region_code") or "ON"
         year = int(payload.get("tax_year") or 2026)
-        fed = _rules(conn, country, "FED", year)
-        prov = [] if region == "FED" else _rules(conn, country, region, year)
-        tax = calculate_tax(gross, fed) + calculate_tax(gross, prov)
+        fed = _ruleset(conn, country, "FED", year)
+        prov = None if region == "FED" else _ruleset(conn, country, region, year)
+        tax = calculate_ruleset_tax(gross, fed)["tax_owed"] + calculate_ruleset_tax(gross, prov)["tax_owed"]
         period_income = round((gross - tax) / (PERIODS_PER_YEAR[unit] / duration), 2)
         tax_rate = round((tax / gross) * 100, 2) if gross else 0
     else:
@@ -118,8 +127,10 @@ def save_income_profile(month_id, payload):
     return get_income_profile(month_id)
 
 
-def _rules(conn, country, region_code, year):
-    ruleset = conn.execute("SELECT id FROM tax_rulesets WHERE country=? AND region_code=? AND tax_year=?", (country, region_code, year)).fetchone()
+def _ruleset(conn, country, region_code, year):
+    ruleset = conn.execute("SELECT * FROM tax_rulesets WHERE country=? AND region_code=? AND tax_year=?", (country, region_code, year)).fetchone()
     if not ruleset:
-        return []
-    return conn.execute("SELECT lower_bound, upper_bound, rate FROM tax_brackets WHERE ruleset_id=? ORDER BY lower_bound", (ruleset["id"],)).fetchall()
+        return None
+    item = dict(ruleset)
+    item["brackets"] = conn.execute("SELECT lower_bound, upper_bound, rate FROM tax_brackets WHERE ruleset_id=? ORDER BY lower_bound", (ruleset["id"],)).fetchall()
+    return item

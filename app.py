@@ -88,14 +88,14 @@ def api_create_tax_ruleset():
     if existing:
         ruleset_id = existing["id"]
         conn.execute(
-            "UPDATE tax_rulesets SET region_name=?, source_url=? WHERE id=?",
-            (data.get("region_name", "").strip(), data.get("source_url", ""), ruleset_id),
+            "UPDATE tax_rulesets SET region_name=?, source_url=?, basic_personal_credit_enabled=?, basic_personal_credit_amount=? WHERE id=?",
+            (data.get("region_name", "").strip(), data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0), ruleset_id),
         )
         conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (ruleset_id,))
     else:
         cursor = conn.execute(
-            "INSERT INTO tax_rulesets(country, region_name, region_code, tax_year, source_url) VALUES(?,?,?,?,?)",
-            (country, data.get("region_name", "").strip(), region_code, tax_year, data.get("source_url", "")),
+            "INSERT INTO tax_rulesets(country, region_name, region_code, tax_year, source_url, basic_personal_credit_enabled, basic_personal_credit_amount) VALUES(?,?,?,?,?,?,?)",
+            (country, data.get("region_name", "").strip(), region_code, tax_year, data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0)),
         )
         ruleset_id = cursor.lastrowid
     for bracket in data.get("brackets", []):
@@ -108,7 +108,7 @@ def api_create_tax_ruleset():
 def api_update_tax_ruleset(id):
     data = request.get_json() or {}
     conn = database.get_connection()
-    conn.execute("UPDATE tax_rulesets SET country=?, region_name=?, region_code=?, tax_year=?, source_url=? WHERE id=?", (data.get("country", "Canada"), data.get("region_name", ""), data.get("region_code", ""), int(data.get("tax_year", 2026)), data.get("source_url", ""), id))
+    conn.execute("UPDATE tax_rulesets SET country=?, region_name=?, region_code=?, tax_year=?, source_url=?, basic_personal_credit_enabled=?, basic_personal_credit_amount=? WHERE id=?", (data.get("country", "Canada"), data.get("region_name", ""), data.get("region_code", ""), int(data.get("tax_year", 2026)), data.get("source_url", ""), bool(data.get("basic_personal_credit_enabled", False)), max(float(data.get("basic_personal_credit_amount") or 0), 0), id))
     conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (id,))
     for bracket in data.get("brackets", []):
         conn.execute("INSERT INTO tax_brackets(ruleset_id, lower_bound, upper_bound, rate) VALUES(?,?,?,?)", (id, bracket.get("lower_bound", 0), bracket.get("upper_bound"), bracket.get("rate", 0)))

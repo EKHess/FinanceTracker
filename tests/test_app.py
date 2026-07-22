@@ -409,3 +409,45 @@ def test_federal_only_income_does_not_apply_federal_rules_twice(tmp_path, monkey
         },
     ).get_json()
     assert profile["income"] == 9000
+
+
+def test_basic_personal_credit_reduces_ruleset_tax(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import database
+    import app as app_module
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    client = app_module.app.test_client()
+    created = client.post(
+        "/api/tax-rulesets",
+        json={
+            "country": "Creditland",
+            "region_name": "Federal",
+            "region_code": "FED",
+            "tax_year": 2028,
+            "basic_personal_credit_enabled": True,
+            "basic_personal_credit_amount": 1000,
+            "brackets": [{"lower_bound": 0, "upper_bound": None, "rate": 10}],
+        },
+    )
+    assert created.status_code == 201
+    ruleset = next(item for item in client.get("/api/tax-rulesets").get_json() if item["country"] == "Creditland")
+    assert ruleset["basic_personal_credit_enabled"] == 1
+    assert ruleset["basic_personal_credit_amount"] == 1000
+
+    profile = client.post(
+        "/api/income",
+        json={
+            "mode": "gross_tax",
+            "country": "Creditland",
+            "region_code": "FED",
+            "tax_year": 2028,
+            "gross_annual_income": 120000,
+            "period_duration": 1,
+            "period_unit": "month",
+        },
+    ).get_json()
+    assert profile["income"] == 9083.33

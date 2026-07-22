@@ -132,6 +132,7 @@ function renderIncomeTaxSelectors(preferredCountry, preferredRegion, preferredYe
 function syncIncomeMode() {
     document.getElementById("simpleIncomeFields").classList.toggle("d-none", selectedIncomeMode() !== "simple");
     document.getElementById("grossIncomeFields").classList.toggle("d-none", selectedIncomeMode() !== "gross_tax");
+    document.getElementById("grossTaxBreakdown").classList.toggle("d-none", selectedIncomeMode() !== "gross_tax");
     updateIncomePreview();
 }
 
@@ -150,10 +151,34 @@ function updateIncomePreview() {
         const country = document.getElementById("taxCountry").value;
         const federal = findRuleset(country, "FED", year);
         const provincial = regionCode === "FED" ? null : findRuleset(country, regionCode, year);
-        const tax = calculateTax(gross, federal?.brackets || []) + calculateTax(gross, provincial?.brackets || []);
+        const federalTax = calculateRulesetTax(gross, federal);
+        const regionalTax = calculateRulesetTax(gross, provincial);
+        const tax = federalTax.taxOwed + regionalTax.taxOwed;
         preview = (gross - tax) / (({ day: 365, week: 52, month: 12, year: 1 }[unit] || 12) / duration);
+        renderGrossTaxBreakdown(gross, federalTax, regionalTax, provincial, gross - tax, preview, duration, unit);
     }
     document.getElementById("incomePreview").textContent = money.format(preview);
+}
+
+function calculateRulesetTax(income, ruleset) {
+    const grossTax = calculateTax(income, ruleset?.brackets || []);
+    const configuredCredit = ruleset?.basic_personal_credit_enabled ? (parseFloat(ruleset.basic_personal_credit_amount) || 0) : 0;
+    const credit = Math.min(grossTax, configuredCredit);
+    return { grossTax, credit, taxOwed: grossTax - credit };
+}
+
+function renderGrossTaxBreakdown(gross, federal, regional, regionalRuleset, annualTakeHome, periodTakeHome, duration, unit) {
+    const creditRow = (label, amount) => amount > 0 ? `<div class="d-flex justify-content-between text-success"><span>${label}</span><span>−${money.format(amount)}</span></div>` : "";
+    const taxRows = (label, values) => `<div class="d-flex justify-content-between mt-1"><span>${label} tax before credit</span><span>${money.format(values.grossTax)}</span></div>${creditRow(`${label} basic personal credit`, values.credit)}<div class="d-flex justify-content-between small fw-semibold"><span>${label} tax owed</span><span>${money.format(values.taxOwed)}</span></div>`;
+    document.getElementById("grossTaxBreakdown").innerHTML = `
+        <div class="tax-invoice border rounded p-3 mt-2">
+            <div class="d-flex justify-content-between fw-semibold mb-2"><span>Annual gross income</span><span>${money.format(gross)}</span></div>
+            ${taxRows("Federal", federal)}
+            ${regionalRuleset ? taxRows(escapeHtml(regionalRuleset.region_name), regional) : ""}
+            <hr class="my-2">
+            <div class="d-flex justify-content-between"><span>Annual take-home pay</span><strong>${money.format(annualTakeHome)}</strong></div>
+            <div class="d-flex justify-content-between fs-5 mt-2"><strong>Take-home every ${formatDuration(duration, unit)}</strong><strong>${money.format(periodTakeHome)}</strong></div>
+        </div>`;
 }
 
 function findRuleset(country, regionCode, taxYear) {
@@ -237,11 +262,19 @@ function renderTaxRulesetDetail() {
                 <strong>${escapeHtml(ruleset.region_name)} (${ruleset.region_code}) ${ruleset.tax_year}</strong>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTaxRuleset(${ruleset.id})">Delete ruleset</button>
             </div>
+            <div class="border rounded p-2 mb-3">
+                <div class="form-check form-switch"><input id="ruleset-credit-enabled-${ruleset.id}" class="form-check-input" type="checkbox" ${ruleset.basic_personal_credit_enabled ? "checked" : ""} onchange="syncDisplayedCredit(${ruleset.id})"><label class="form-check-label" for="ruleset-credit-enabled-${ruleset.id}">Apply basic personal amount credit</label></div>
+                <div id="ruleset-credit-group-${ruleset.id}" class="mt-2 ${ruleset.basic_personal_credit_enabled ? "" : "d-none"}"><label class="form-label small" for="ruleset-credit-amount-${ruleset.id}">Annual credit amount</label><div class="input-group input-group-sm"><span class="input-group-text">$</span><input id="ruleset-credit-amount-${ruleset.id}" class="form-control" type="number" min="0" step="0.01" value="${ruleset.basic_personal_credit_amount || 0}"></div></div>
+            </div>
             <div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead><tr><th>From</th><th>Up to</th><th>Tax rate %</th><th></th></tr></thead><tbody id="ruleset-${ruleset.id}">
                 ${ruleset.brackets.map((bracket) => taxBracketRow(ruleset.id, bracket)).join("")}
             </tbody></table></div>
             <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" onclick="addTaxBracketRow(${ruleset.id})">Add bracket</button><button class="btn btn-sm btn-outline-primary" onclick="saveDisplayedTaxRuleset(${ruleset.id})">Save ${escapeHtml(ruleset.region_name)}</button></div>
         </div>`).join("");
+}
+
+function syncDisplayedCredit(id) {
+    document.getElementById(`ruleset-credit-group-${id}`).classList.toggle("d-none", !document.getElementById(`ruleset-credit-enabled-${id}`).checked);
 }
 
 function taxBracketRow(rulesetId, bracket = { lower_bound: 0, upper_bound: "", rate: 0 }) {
@@ -262,6 +295,8 @@ function parseDisplayedBrackets(id) {
 
 async function saveDisplayedTaxRuleset(id) {
     const ruleset = taxRulesets.find((item) => item.id === id);
+    ruleset.basic_personal_credit_enabled = document.getElementById(`ruleset-credit-enabled-${id}`).checked;
+    ruleset.basic_personal_credit_amount = parseFloat(document.getElementById(`ruleset-credit-amount-${id}`).value) || 0;
     const selectedIncomeRules = [document.getElementById("taxCountry").value, document.getElementById("taxProvince").value, document.getElementById("taxYear").value];
     await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ ...ruleset, brackets: parseDisplayedBrackets(id) }) });
     taxRulesets = await api("/api/tax-rulesets");
@@ -291,10 +326,17 @@ function showNewTaxRulesetForm() {
     document.getElementById("newRulesetRegion").value = document.getElementById("rulesetRegion").value || "ON";
     document.getElementById("newRulesetYear").value = document.getElementById("rulesetYear").value || new Date().getFullYear();
     document.getElementById("ruleset-new").innerHTML = taxBracketRow("new");
+    document.getElementById("newRulesetCreditEnabled").checked = false;
+    document.getElementById("newRulesetCreditAmount").value = 0;
+    document.getElementById("newRulesetCreditEnabled").onchange = syncNewRulesetCredit;
     ["newRulesetType", "newRulesetCountry", "newRulesetRegion", "newRulesetYear"].forEach((id) => {
         document.getElementById(id).oninput = syncNewTaxRulesetForm;
     });
     syncNewTaxRulesetForm();
+}
+
+function syncNewRulesetCredit() {
+    document.getElementById("newRulesetCreditAmountGroup").classList.toggle("d-none", !document.getElementById("newRulesetCreditEnabled").checked);
 }
 
 function cancelNewTaxRuleset() {
@@ -338,6 +380,8 @@ async function saveNewTaxRuleset() {
         region_name: name,
         region_code: identity.regionCode,
         tax_year: identity.taxYear,
+        basic_personal_credit_enabled: document.getElementById("newRulesetCreditEnabled").checked,
+        basic_personal_credit_amount: parseFloat(document.getElementById("newRulesetCreditAmount").value) || 0,
         brackets: parseDisplayedBrackets("new"),
     };
     try {
