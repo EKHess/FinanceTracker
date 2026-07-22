@@ -66,11 +66,15 @@ def calculate_tax(income, brackets):
 
 def calculate_ruleset_tax(income, ruleset):
     if not ruleset:
-        return {"gross_tax": 0.0, "credit": 0.0, "tax_owed": 0.0}
-    gross_tax = calculate_tax(income, ruleset["brackets"])
-    configured_credit = float(ruleset["basic_personal_credit_amount"] or 0) if ruleset["basic_personal_credit_enabled"] else 0
-    credit = round(min(gross_tax, configured_credit), 2)
-    return {"gross_tax": gross_tax, "credit": credit, "tax_owed": round(gross_tax - credit, 2)}
+        return {"personal_amount": 0.0, "taxable_income": income, "tax_owed": 0.0}
+    configured_amount = float(ruleset["basic_personal_credit_amount"] or 0) if ruleset["basic_personal_credit_enabled"] else 0
+    personal_amount = round(min(income, configured_amount), 2)
+    taxable_income = round(max(income - personal_amount, 0), 2)
+    return {
+        "personal_amount": personal_amount,
+        "taxable_income": taxable_income,
+        "tax_owed": calculate_tax(taxable_income, ruleset["brackets"]),
+    }
 
 
 def get_tax_rulesets():

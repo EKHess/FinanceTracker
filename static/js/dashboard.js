@@ -161,15 +161,15 @@ function updateIncomePreview() {
 }
 
 function calculateRulesetTax(income, ruleset) {
-    const grossTax = calculateTax(income, ruleset?.brackets || []);
-    const configuredCredit = ruleset?.basic_personal_credit_enabled ? (parseFloat(ruleset.basic_personal_credit_amount) || 0) : 0;
-    const credit = Math.min(grossTax, configuredCredit);
-    return { grossTax, credit, taxOwed: grossTax - credit };
+    const configuredAmount = ruleset?.basic_personal_credit_enabled ? (parseFloat(ruleset.basic_personal_credit_amount) || 0) : 0;
+    const personalAmount = Math.min(income, configuredAmount);
+    const taxableIncome = Math.max(income - personalAmount, 0);
+    return { personalAmount, taxableIncome, taxOwed: calculateTax(taxableIncome, ruleset?.brackets || []) };
 }
 
 function renderGrossTaxBreakdown(gross, federal, regional, regionalRuleset, annualTakeHome, periodTakeHome, duration, unit) {
-    const creditRow = (label, amount) => amount > 0 ? `<div class="d-flex justify-content-between text-success"><span>${label}</span><span>−${money.format(amount)}</span></div>` : "";
-    const taxRows = (label, values) => `<div class="d-flex justify-content-between mt-1"><span>${label} tax before credit</span><span>${money.format(values.grossTax)}</span></div>${creditRow(`${label} basic personal credit`, values.credit)}<div class="d-flex justify-content-between small fw-semibold"><span>${label} tax owed</span><span>${money.format(values.taxOwed)}</span></div>`;
+    const personalAmountRow = (label, amount) => amount > 0 ? `<div class="d-flex justify-content-between text-success"><span>${label} basic personal amount</span><span>−${money.format(amount)}</span></div>` : "";
+    const taxRows = (label, values) => `<div class="mt-2 small text-muted fw-semibold">${label}</div>${personalAmountRow(label, values.personalAmount)}<div class="d-flex justify-content-between"><span>${label} taxable income</span><span>${money.format(values.taxableIncome)}</span></div><div class="d-flex justify-content-between fw-semibold"><span>${label} tax owed</span><span>${money.format(values.taxOwed)}</span></div>`;
     document.getElementById("grossTaxBreakdown").innerHTML = `
         <div class="tax-invoice border rounded p-3 mt-2">
             <div class="d-flex justify-content-between fw-semibold mb-2"><span>Annual gross income</span><span>${money.format(gross)}</span></div>
@@ -263,8 +263,8 @@ function renderTaxRulesetDetail() {
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTaxRuleset(${ruleset.id})">Delete ruleset</button>
             </div>
             <div class="border rounded p-2 mb-3">
-                <div class="form-check form-switch"><input id="ruleset-credit-enabled-${ruleset.id}" class="form-check-input" type="checkbox" ${ruleset.basic_personal_credit_enabled ? "checked" : ""} onchange="syncDisplayedCredit(${ruleset.id})"><label class="form-check-label" for="ruleset-credit-enabled-${ruleset.id}">Apply basic personal amount credit</label></div>
-                <div id="ruleset-credit-group-${ruleset.id}" class="mt-2 ${ruleset.basic_personal_credit_enabled ? "" : "d-none"}"><label class="form-label small" for="ruleset-credit-amount-${ruleset.id}">Annual credit amount</label><div class="input-group input-group-sm"><span class="input-group-text">$</span><input id="ruleset-credit-amount-${ruleset.id}" class="form-control" type="number" min="0" step="0.01" value="${ruleset.basic_personal_credit_amount || 0}"></div></div>
+                <div class="form-check form-switch"><input id="ruleset-credit-enabled-${ruleset.id}" class="form-check-input" type="checkbox" ${ruleset.basic_personal_credit_enabled ? "checked" : ""} onchange="syncDisplayedCredit(${ruleset.id})"><label class="form-check-label" for="ruleset-credit-enabled-${ruleset.id}">Apply basic personal amount</label></div>
+                <div id="ruleset-credit-group-${ruleset.id}" class="mt-2 ${ruleset.basic_personal_credit_enabled ? "" : "d-none"}"><label class="form-label small" for="ruleset-credit-amount-${ruleset.id}">Annual basic personal amount</label><div class="input-group input-group-sm"><span class="input-group-text">$</span><input id="ruleset-credit-amount-${ruleset.id}" class="form-control" type="number" min="0" step="0.01" value="${ruleset.basic_personal_credit_amount || 0}"></div><div class="form-text">Deducted from gross income before this ruleset's tax brackets are applied.</div></div>
             </div>
             <div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead><tr><th>From</th><th>Up to</th><th>Tax rate %</th><th></th></tr></thead><tbody id="ruleset-${ruleset.id}">
                 ${ruleset.brackets.map((bracket) => taxBracketRow(ruleset.id, bracket)).join("")}

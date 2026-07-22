@@ -411,7 +411,7 @@ def test_federal_only_income_does_not_apply_federal_rules_twice(tmp_path, monkey
     assert profile["income"] == 9000
 
 
-def test_basic_personal_credit_reduces_ruleset_tax(tmp_path, monkeypatch):
+def test_basic_personal_amount_reduces_income_before_ruleset_tax(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     import database
@@ -450,4 +450,4 @@ def test_basic_personal_credit_reduces_ruleset_tax(tmp_path, monkeypatch):
             "period_unit": "month",
         },
     ).get_json()
-    assert profile["income"] == 9083.33
+    assert profile["income"] == 9008.33
