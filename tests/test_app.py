@@ -328,6 +328,23 @@ def test_tax_ruleset_crud_allows_future_updates(tmp_path, monkeypatch):
     assert created.status_code == 201
     ruleset = next(item for item in client.get("/api/tax-rulesets").get_json() if item["region_code"] == "TP")
 
+    overwritten = client.post(
+        "/api/tax-rulesets",
+        json={
+            "country": "Canada",
+            "region_name": "Renamed Test Province",
+            "region_code": "TP",
+            "tax_year": 2027,
+            "brackets": [{"lower_bound": 0, "upper_bound": None, "rate": 8}],
+        },
+    )
+    assert overwritten.status_code == 200
+    assert overwritten.get_json() == {"success": True, "id": ruleset["id"], "overwritten": True}
+    matching = [item for item in client.get("/api/tax-rulesets").get_json() if item["region_code"] == "TP"]
+    assert len(matching) == 1
+    assert matching[0]["region_name"] == "Renamed Test Province"
+    assert matching[0]["brackets"][0]["rate"] == 8
+
     updated = client.put(
         f"/api/tax-rulesets/{ruleset['id']}",
         json={

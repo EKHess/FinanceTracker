@@ -78,14 +78,30 @@ def api_tax_rulesets():
 def api_create_tax_ruleset():
     data = request.get_json() or {}
     conn = database.get_connection()
-    cursor = conn.execute(
-        "INSERT INTO tax_rulesets(country, region_name, region_code, tax_year, source_url) VALUES(?,?,?,?,?)",
-        (data.get("country", "Canada"), data.get("region_name", ""), data.get("region_code", ""), int(data.get("tax_year", 2026)), data.get("source_url", "")),
-    )
+    country = data.get("country", "Canada").strip()
+    region_code = data.get("region_code", "").strip().upper()
+    tax_year = int(data.get("tax_year", 2026))
+    existing = conn.execute(
+        "SELECT id FROM tax_rulesets WHERE country=? AND region_code=? AND tax_year=?",
+        (country, region_code, tax_year),
+    ).fetchone()
+    if existing:
+        ruleset_id = existing["id"]
+        conn.execute(
+            "UPDATE tax_rulesets SET region_name=?, source_url=? WHERE id=?",
+            (data.get("region_name", "").strip(), data.get("source_url", ""), ruleset_id),
+        )
+        conn.execute("DELETE FROM tax_brackets WHERE ruleset_id=?", (ruleset_id,))
+    else:
+        cursor = conn.execute(
+            "INSERT INTO tax_rulesets(country, region_name, region_code, tax_year, source_url) VALUES(?,?,?,?,?)",
+            (country, data.get("region_name", "").strip(), region_code, tax_year, data.get("source_url", "")),
+        )
+        ruleset_id = cursor.lastrowid
     for bracket in data.get("brackets", []):
-        conn.execute("INSERT INTO tax_brackets(ruleset_id, lower_bound, upper_bound, rate) VALUES(?,?,?,?)", (cursor.lastrowid, bracket.get("lower_bound", 0), bracket.get("upper_bound"), bracket.get("rate", 0)))
+        conn.execute("INSERT INTO tax_brackets(ruleset_id, lower_bound, upper_bound, rate) VALUES(?,?,?,?)", (ruleset_id, bracket.get("lower_bound", 0), bracket.get("upper_bound"), bracket.get("rate", 0)))
     conn.commit(); conn.close()
-    return jsonify({"success": True}), 201
+    return jsonify({"success": True, "id": ruleset_id, "overwritten": bool(existing)}), 200 if existing else 201
 
 
 @app.route("/api/tax-rulesets/<int:id>", methods=["PUT"])

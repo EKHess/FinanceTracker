@@ -251,13 +251,82 @@ async function deleteTaxRuleset(id) {
     updateIncomePreview();
 }
 
-async function newTaxRuleset() {
-    const regionName = prompt("Region/province name");
-    if (!regionName) return;
-    const regionCode = prompt("Region code (for example, ON)", regionName.slice(0, 2).toUpperCase());
-    await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify({ country: "Canada", region_name: regionName, region_code: regionCode, tax_year: 2026, brackets: [{ lower_bound: 0, upper_bound: null, rate: 0 }] }) });
-    taxRulesets = await api("/api/tax-rulesets");
-    renderTaxRulesetSelectors();
+function showNewTaxRulesetForm() {
+    document.getElementById("taxRulesBrowser").classList.add("d-none");
+    document.getElementById("newTaxRulesetForm").classList.remove("d-none");
+    document.getElementById("newRulesetRegion").innerHTML = Object.entries(provinces)
+        .map(([code, name]) => `<option value="${code}">${escapeHtml(name)}</option>`).join("");
+    document.getElementById("newRulesetType").value = "federal";
+    document.getElementById("newRulesetName").value = "Federal";
+    document.getElementById("newRulesetCountry").value = document.getElementById("rulesetCountry").value || "Canada";
+    document.getElementById("newRulesetRegion").value = document.getElementById("rulesetRegion").value || "ON";
+    document.getElementById("newRulesetYear").value = document.getElementById("rulesetYear").value || new Date().getFullYear();
+    document.getElementById("newRulesetBrackets").innerHTML = taxBracketRow("new");
+    ["newRulesetType", "newRulesetCountry", "newRulesetRegion", "newRulesetYear"].forEach((id) => {
+        document.getElementById(id).oninput = syncNewTaxRulesetForm;
+    });
+    syncNewTaxRulesetForm();
+}
+
+function cancelNewTaxRuleset() {
+    document.getElementById("newTaxRulesetForm").classList.add("d-none");
+    document.getElementById("taxRulesBrowser").classList.remove("d-none");
+}
+
+function newRulesetIdentity() {
+    const federal = document.getElementById("newRulesetType").value === "federal";
+    return {
+        country: document.getElementById("newRulesetCountry").value.trim(),
+        regionCode: federal ? "FED" : document.getElementById("newRulesetRegion").value,
+        taxYear: parseInt(document.getElementById("newRulesetYear").value, 10),
+    };
+}
+
+function syncNewTaxRulesetForm() {
+    const federal = document.getElementById("newRulesetType").value === "federal";
+    document.getElementById("newRulesetRegionGroup").classList.toggle("d-none", federal);
+    const identity = newRulesetIdentity();
+    const existing = findRuleset(identity.country, identity.regionCode, identity.taxYear);
+    const warning = document.getElementById("newRulesetWarning");
+    warning.classList.toggle("d-none", !existing);
+    warning.textContent = existing
+        ? `A ${federal ? "federal" : "provincial/regional"} ruleset already exists for ${identity.country}, ${existing.region_name}, ${identity.taxYear}. Saving will overwrite the current ruleset.`
+        : "";
+}
+
+async function saveNewTaxRuleset() {
+    const identity = newRulesetIdentity();
+    const name = document.getElementById("newRulesetName").value.trim();
+    const error = document.getElementById("newRulesetError");
+    error.classList.add("d-none");
+    if (!name || !identity.country || !identity.taxYear) {
+        error.textContent = "Enter a ruleset name, country, and valid tax year.";
+        error.classList.remove("d-none");
+        return;
+    }
+    const payload = {
+        country: identity.country,
+        region_name: name,
+        region_code: identity.regionCode,
+        tax_year: identity.taxYear,
+        brackets: parseDisplayedBrackets("new"),
+    };
+    try {
+        await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify(payload) });
+        taxRulesets = await api("/api/tax-rulesets");
+        cancelNewTaxRuleset();
+        renderTaxRulesetSelectors();
+        document.getElementById("rulesetCountry").value = identity.country;
+        document.getElementById("rulesetCountry").dispatchEvent(new Event("change"));
+        if (identity.regionCode !== "FED") document.getElementById("rulesetRegion").value = identity.regionCode;
+        document.getElementById("rulesetRegion").dispatchEvent(new Event("change"));
+        document.getElementById("rulesetYear").value = String(identity.taxYear);
+        renderTaxRulesetDetail();
+        updateIncomePreview();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
 }
 
 async function showCategory(categoryId) {
