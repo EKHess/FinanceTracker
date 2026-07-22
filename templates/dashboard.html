@@ -108,7 +108,17 @@
                 <div id="grossIncomeFields" class="card mb-3 d-none"><div class="card-body row g-3"><div class="col-md-3"><label class="form-label" for="taxCountry">Country</label><select id="taxCountry" class="form-select"><option value="Canada">Canada</option></select></div><div class="col-md-3"><label class="form-label" for="taxProvince">Province</label><select id="taxProvince" class="form-select"></select></div><div class="col-md-3"><label class="form-label" for="taxYear">Tax year</label><input id="taxYear" class="form-control" type="number" value="2026"></div><div class="col-md-3"><label class="form-label" for="grossAnnualIncome">Annual gross income</label><input id="grossAnnualIncome" class="form-control" type="number" min="0" step="0.01"></div></div></div>
                 <div class="card mb-3"><div class="card-body row g-3"><div class="col-md-4"><label class="form-label" for="incomePeriodDuration">Pay period duration</label><input id="incomePeriodDuration" class="form-control" type="number" min="1" step="1" value="1"></div><div class="col-md-4"><label class="form-label" for="incomePeriodUnit">Pay period unit</label><select id="incomePeriodUnit" class="form-select"><option value="day">day</option><option value="week">week</option><option value="month" selected>month</option><option value="year">year</option></select></div><div class="col-md-4"><label class="form-label">Calculated take-home</label><div id="incomePreview" class="fs-4 fw-bold">$0.00</div></div></div></div>
                 <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#taxRulesEditor">View/edit tax rulesets</button>
-                <div class="collapse mt-3" id="taxRulesEditor"><div class="d-flex justify-content-between align-items-center"><h6>Tax rulesets</h6><button class="btn btn-sm btn-outline-primary" onclick="newTaxRuleset()">Add ruleset</button></div><div id="taxRulesList" class="vstack gap-2"></div></div>
+                <div class="collapse mt-3" id="taxRulesEditor">
+                    <div class="card"><div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><h6 class="mb-0">Tax rulesets</h6><button class="btn btn-sm btn-outline-primary" onclick="newTaxRuleset()">Add ruleset</button></div>
+                        <div class="row g-3 align-items-end mb-3">
+                            <div class="col-md-4"><label class="form-label" for="rulesetCountry">Country</label><select id="rulesetCountry" class="form-select"></select></div>
+                            <div class="col-md-4"><label class="form-label" for="rulesetRegion">Province/region</label><select id="rulesetRegion" class="form-select"></select></div>
+                            <div class="col-md-4"><label class="form-label" for="rulesetYear">Tax year</label><select id="rulesetYear" class="form-select"></select></div>
+                        </div>
+                        <div id="taxRulesDetail"></div>
+                    </div></div>
+                </div>
                 <div id="incomeError" class="alert alert-danger mt-3 d-none"></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="saveIncomeProfile()">Save income</button></div>

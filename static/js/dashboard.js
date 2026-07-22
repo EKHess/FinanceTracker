@@ -72,6 +72,8 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
+let taxRulesets = [];
+
 const provinces = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan" };
 
 function formatDuration(duration, unit) {
@@ -98,7 +100,8 @@ async function openIncomeModal() {
     document.getElementById("taxProvince").value = profile.tax_region_code || "ON";
     document.getElementById("taxYear").value = profile.tax_year || 2026;
     syncIncomeMode();
-    await renderTaxRulesets();
+    taxRulesets = await api("/api/tax-rulesets");
+    renderTaxRulesetSelectors();
     new bootstrap.Modal(document.getElementById("incomeModal")).show();
 }
 
@@ -115,9 +118,31 @@ function updateIncomePreview() {
         const rate = parseFloat(document.getElementById("manualTaxRate").value) || 0;
         preview = amount * (1 - rate / 100);
     } else {
-        preview = dashboardState.summary.income || 0;
+        const gross = parseFloat(document.getElementById("grossAnnualIncome").value) || 0;
+        const duration = parseFloat(document.getElementById("incomePeriodDuration").value) || 1;
+        const unit = document.getElementById("incomePeriodUnit").value;
+        const year = parseInt(document.getElementById("taxYear").value, 10) || 2026;
+        const regionCode = document.getElementById("taxProvince").value;
+        const federal = findRuleset("Canada", "FED", year);
+        const provincial = findRuleset("Canada", regionCode, year);
+        const tax = calculateTax(gross, federal?.brackets || []) + calculateTax(gross, provincial?.brackets || []);
+        preview = (gross - tax) / (({ day: 365, week: 52, month: 12, year: 1 }[unit] || 12) / duration);
     }
     document.getElementById("incomePreview").textContent = money.format(preview);
+}
+
+function findRuleset(country, regionCode, taxYear) {
+    return taxRulesets.find((ruleset) => ruleset.country === country && ruleset.region_code === regionCode && Number(ruleset.tax_year) === Number(taxYear));
+}
+
+function calculateTax(income, brackets) {
+    return brackets.reduce((total, bracket) => {
+        const lower = parseFloat(bracket.lower_bound) || 0;
+        const upper = bracket.upper_bound === null || bracket.upper_bound === "" ? null : parseFloat(bracket.upper_bound);
+        if (income <= lower) return total;
+        const taxable = (upper === null ? income : Math.min(income, upper)) - lower;
+        return total + taxable * ((parseFloat(bracket.rate) || 0) / 100);
+    }, 0);
 }
 
 async function saveIncomeProfile() {
@@ -142,28 +167,88 @@ async function saveIncomeProfile() {
     }
 }
 
-async function renderTaxRulesets() {
-    const rulesets = await api("/api/tax-rulesets");
-    const list = document.getElementById("taxRulesList");
-    list.innerHTML = rulesets.map((ruleset) => `<div class="card"><div class="card-body"><div class="d-flex justify-content-between"><strong>${escapeHtml(ruleset.country)} ${escapeHtml(ruleset.region_name)} (${ruleset.tax_year})</strong><button class="btn btn-sm btn-outline-danger" onclick="deleteTaxRuleset(${ruleset.id})">Delete</button></div><textarea class="form-control form-control-sm mt-2" id="ruleset-${ruleset.id}" rows="3">${ruleset.brackets.map((b) => `${b.lower_bound},${b.upper_bound ?? ""},${b.rate}`).join("\n")}</textarea><button class="btn btn-sm btn-outline-primary mt-2" onclick="saveTaxRuleset(${ruleset.id}, '${escapeHtml(ruleset.country)}', '${escapeHtml(ruleset.region_name)}', '${escapeHtml(ruleset.region_code)}', ${ruleset.tax_year})">Save brackets</button></div></div>`).join("");
+function renderTaxRulesetSelectors() {
+    const countrySelect = document.getElementById("rulesetCountry");
+    const regionSelect = document.getElementById("rulesetRegion");
+    const yearSelect = document.getElementById("rulesetYear");
+    if (!countrySelect || !regionSelect || !yearSelect) return;
+
+    const countries = [...new Set(taxRulesets.map((ruleset) => ruleset.country))];
+    countrySelect.innerHTML = countries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join("");
+    countrySelect.value = countrySelect.value || "Canada";
+
+    const syncRegions = () => {
+        const selectedCountry = countrySelect.value;
+        const regions = taxRulesets.filter((ruleset) => ruleset.country === selectedCountry && ruleset.region_code !== "FED");
+        regionSelect.innerHTML = regions.map((ruleset) => `<option value="${escapeHtml(ruleset.region_code)}">${escapeHtml(ruleset.region_name)}</option>`).join("");
+        if (!regionSelect.value) regionSelect.value = document.getElementById("taxProvince").value || "ON";
+        syncYears();
+    };
+
+    const syncYears = () => {
+        const selectedCountry = countrySelect.value;
+        const selectedRegion = regionSelect.value;
+        const years = [...new Set(taxRulesets.filter((ruleset) => ruleset.country === selectedCountry && [selectedRegion, "FED"].includes(ruleset.region_code)).map((ruleset) => ruleset.tax_year))].sort((a, b) => b - a);
+        yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
+        if (!yearSelect.value) yearSelect.value = document.getElementById("taxYear").value || years[0] || 2026;
+        renderTaxRulesetDetail();
+    };
+
+    countrySelect.onchange = syncRegions;
+    regionSelect.onchange = syncYears;
+    yearSelect.onchange = renderTaxRulesetDetail;
+    syncRegions();
 }
 
-function parseBrackets(id) {
-    return document.getElementById(`ruleset-${id}`).value.split("\n").filter(Boolean).map((line) => {
-        const [lower, upper, rate] = line.split(",");
-        return { lower_bound: parseFloat(lower) || 0, upper_bound: upper ? parseFloat(upper) : null, rate: parseFloat(rate) || 0 };
-    });
+function renderTaxRulesetDetail() {
+    const country = document.getElementById("rulesetCountry").value;
+    const regionCode = document.getElementById("rulesetRegion").value;
+    const year = parseInt(document.getElementById("rulesetYear").value, 10);
+    const rulesets = [findRuleset(country, "FED", year), findRuleset(country, regionCode, year)].filter(Boolean);
+    const detail = document.getElementById("taxRulesDetail");
+    detail.innerHTML = rulesets.map((ruleset) => `
+        <div class="border rounded p-3 mb-3" data-ruleset-id="${ruleset.id}">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <strong>${escapeHtml(ruleset.region_name)} (${ruleset.region_code}) ${ruleset.tax_year}</strong>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteTaxRuleset(${ruleset.id})">Delete ruleset</button>
+            </div>
+            <div class="table-responsive"><table class="table table-sm align-middle mb-2"><thead><tr><th>From</th><th>Up to</th><th>Tax rate %</th><th></th></tr></thead><tbody id="ruleset-${ruleset.id}">
+                ${ruleset.brackets.map((bracket) => taxBracketRow(ruleset.id, bracket)).join("")}
+            </tbody></table></div>
+            <div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" onclick="addTaxBracketRow(${ruleset.id})">Add bracket</button><button class="btn btn-sm btn-outline-primary" onclick="saveDisplayedTaxRuleset(${ruleset.id})">Save ${escapeHtml(ruleset.region_name)}</button></div>
+        </div>`).join("");
 }
 
-async function saveTaxRuleset(id, country, regionName, regionCode, taxYear) {
-    await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ country, region_name: regionName, region_code: regionCode, tax_year: taxYear, brackets: parseBrackets(id) }) });
-    await renderTaxRulesets();
+function taxBracketRow(rulesetId, bracket = { lower_bound: 0, upper_bound: "", rate: 0 }) {
+    return `<tr><td><input class="form-control form-control-sm bracket-from" type="number" min="0" step="0.01" value="${bracket.lower_bound ?? 0}"></td><td><input class="form-control form-control-sm bracket-up-to" type="number" min="0" step="0.01" placeholder="No limit" value="${bracket.upper_bound ?? ""}"></td><td><input class="form-control form-control-sm bracket-rate" type="number" min="0" step="0.01" value="${bracket.rate ?? 0}"></td><td class="text-end"><button class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">Remove</button></td></tr>`;
+}
+
+function addTaxBracketRow(rulesetId) {
+    document.getElementById(`ruleset-${rulesetId}`).insertAdjacentHTML("beforeend", taxBracketRow(rulesetId));
+}
+
+function parseDisplayedBrackets(id) {
+    return [...document.querySelectorAll(`#ruleset-${id} tr`)].map((row) => ({
+        lower_bound: parseFloat(row.querySelector(".bracket-from").value) || 0,
+        upper_bound: row.querySelector(".bracket-up-to").value === "" ? null : parseFloat(row.querySelector(".bracket-up-to").value),
+        rate: parseFloat(row.querySelector(".bracket-rate").value) || 0,
+    }));
+}
+
+async function saveDisplayedTaxRuleset(id) {
+    const ruleset = taxRulesets.find((item) => item.id === id);
+    await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ ...ruleset, brackets: parseDisplayedBrackets(id) }) });
+    taxRulesets = await api("/api/tax-rulesets");
+    renderTaxRulesetSelectors();
+    updateIncomePreview();
 }
 
 async function deleteTaxRuleset(id) {
     if (!confirm("Delete this tax ruleset?")) return;
     await api(`/api/tax-rulesets/${id}`, { method: "DELETE" });
-    await renderTaxRulesets();
+    taxRulesets = await api("/api/tax-rulesets");
+    renderTaxRulesetSelectors();
+    updateIncomePreview();
 }
 
 async function newTaxRuleset() {
@@ -171,7 +256,8 @@ async function newTaxRuleset() {
     if (!regionName) return;
     const regionCode = prompt("Region code (for example, ON)", regionName.slice(0, 2).toUpperCase());
     await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify({ country: "Canada", region_name: regionName, region_code: regionCode, tax_year: 2026, brackets: [{ lower_bound: 0, upper_bound: null, rate: 0 }] }) });
-    await renderTaxRulesets();
+    taxRulesets = await api("/api/tax-rulesets");
+    renderTaxRulesetSelectors();
 }
 
 async function showCategory(categoryId) {
