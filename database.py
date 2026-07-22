@@ -33,6 +33,22 @@ def initialize_database():
 
         income REAL NOT NULL DEFAULT 0,
 
+        income_mode TEXT NOT NULL DEFAULT 'simple',
+
+        income_period_duration REAL NOT NULL DEFAULT 1,
+
+        income_period_unit TEXT NOT NULL DEFAULT 'month',
+
+        manual_tax_rate REAL NOT NULL DEFAULT 0,
+
+        gross_annual_income REAL,
+
+        tax_country TEXT,
+
+        tax_region_code TEXT,
+
+        tax_year INTEGER,
+
         finalized INTEGER NOT NULL DEFAULT 0,
 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -78,9 +94,50 @@ def initialize_database():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tax_rulesets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        country TEXT NOT NULL,
+        region_name TEXT NOT NULL,
+        region_code TEXT NOT NULL,
+        tax_year INTEGER NOT NULL,
+        source_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(country, region_code, tax_year)
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tax_brackets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ruleset_id INTEGER NOT NULL,
+        lower_bound REAL NOT NULL,
+        upper_bound REAL,
+        rate REAL NOT NULL,
+        FOREIGN KEY(ruleset_id) REFERENCES tax_rulesets(id) ON DELETE CASCADE
+    )
+    """)
+
+    _ensure_column(cursor, "months", "income_mode", "TEXT NOT NULL DEFAULT 'simple'")
+    _ensure_column(cursor, "months", "income_period_duration", "REAL NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "months", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "months", "manual_tax_rate", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "months", "gross_annual_income", "REAL")
+    _ensure_column(cursor, "months", "tax_country", "TEXT")
+    _ensure_column(cursor, "months", "tax_region_code", "TEXT")
+    _ensure_column(cursor, "months", "tax_year", "INTEGER")
+
     conn.commit()
     conn.close()
     migrate_categories()
+    from services.income import seed_default_tax_rules
+    seed_default_tax_rules()
+
+
+def _ensure_column(cursor, table, column, definition):
+    columns = [row[1] for row in cursor.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def migrate_categories():

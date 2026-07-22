@@ -22,6 +22,11 @@ async function loadDashboard() {
 
 function renderSummary(summary) {
     document.getElementById("income").textContent = money.format(summary.income);
+    if (dashboardState.month) {
+        const duration = dashboardState.month.income_period_duration || 1;
+        const unit = dashboardState.month.income_period_unit || "month";
+        document.getElementById("incomePeriod").textContent = `every ${formatDuration(duration, unit)}`;
+    }
     document.getElementById("spending").textContent = money.format(summary.spending);
     document.getElementById("recurringTotal").textContent = money.format(summary.recurring_total);
     document.getElementById("savingsRate").textContent = `${summary.savings_rate.toFixed(1)}%`;
@@ -67,11 +72,106 @@ function escapeHtml(value) {
     return div.innerHTML;
 }
 
-async function editIncome() {
-    const value = prompt("Monthly Income", dashboardState.summary.income || 0);
-    if (value === null) return;
-    await api("/api/income", { method: "POST", body: JSON.stringify({ income: parseFloat(value) || 0 }) });
-    await loadDashboard();
+const provinces = { AB: "Alberta", BC: "British Columbia", MB: "Manitoba", NB: "New Brunswick", NL: "Newfoundland and Labrador", NS: "Nova Scotia", ON: "Ontario", PE: "Prince Edward Island", QC: "Quebec", SK: "Saskatchewan" };
+
+function formatDuration(duration, unit) {
+    const rounded = Number(duration) % 1 === 0 ? Number(duration).toFixed(0) : Number(duration).toString();
+    return `${rounded} ${unit}${Number(duration) === 1 ? "" : "s"}`;
+}
+
+function selectedIncomeMode() {
+    return document.querySelector('input[name="incomeMode"]:checked').value;
+}
+
+async function openIncomeModal() {
+    const province = document.getElementById("taxProvince");
+    province.innerHTML = Object.entries(provinces).map(([code, name]) => `<option value="${code}">${name}</option>`).join("");
+    document.querySelectorAll('input[name="incomeMode"]').forEach((input) => input.addEventListener("change", syncIncomeMode));
+    ["takeHomeIncome", "manualTaxRate", "grossAnnualIncome", "incomePeriodDuration", "incomePeriodUnit", "taxProvince", "taxYear"].forEach((id) => document.getElementById(id).addEventListener("input", updateIncomePreview));
+    const profile = await api("/api/income");
+    document.getElementById(profile.income_mode === "gross_tax" ? "incomeModeGross" : "incomeModeSimple").checked = true;
+    document.getElementById("takeHomeIncome").value = profile.income || 0;
+    document.getElementById("manualTaxRate").value = profile.manual_tax_rate || 0;
+    document.getElementById("incomePeriodDuration").value = profile.income_period_duration || 1;
+    document.getElementById("incomePeriodUnit").value = profile.income_period_unit || "month";
+    document.getElementById("grossAnnualIncome").value = profile.gross_annual_income || "";
+    document.getElementById("taxProvince").value = profile.tax_region_code || "ON";
+    document.getElementById("taxYear").value = profile.tax_year || 2026;
+    syncIncomeMode();
+    await renderTaxRulesets();
+    new bootstrap.Modal(document.getElementById("incomeModal")).show();
+}
+
+function syncIncomeMode() {
+    document.getElementById("simpleIncomeFields").classList.toggle("d-none", selectedIncomeMode() !== "simple");
+    document.getElementById("grossIncomeFields").classList.toggle("d-none", selectedIncomeMode() !== "gross_tax");
+    updateIncomePreview();
+}
+
+function updateIncomePreview() {
+    let preview = 0;
+    if (selectedIncomeMode() === "simple") {
+        const amount = parseFloat(document.getElementById("takeHomeIncome").value) || 0;
+        const rate = parseFloat(document.getElementById("manualTaxRate").value) || 0;
+        preview = amount * (1 - rate / 100);
+    } else {
+        preview = dashboardState.summary.income || 0;
+    }
+    document.getElementById("incomePreview").textContent = money.format(preview);
+}
+
+async function saveIncomeProfile() {
+    const payload = {
+        mode: selectedIncomeMode(),
+        take_home_income: parseFloat(document.getElementById("takeHomeIncome").value) || 0,
+        manual_tax_rate: parseFloat(document.getElementById("manualTaxRate").value) || 0,
+        country: "Canada",
+        region_code: document.getElementById("taxProvince").value,
+        tax_year: parseInt(document.getElementById("taxYear").value, 10) || 2026,
+        gross_annual_income: parseFloat(document.getElementById("grossAnnualIncome").value) || 0,
+        period_duration: parseFloat(document.getElementById("incomePeriodDuration").value) || 1,
+        period_unit: document.getElementById("incomePeriodUnit").value,
+    };
+    try {
+        await api("/api/income", { method: "POST", body: JSON.stringify(payload) });
+        bootstrap.Modal.getInstance(document.getElementById("incomeModal")).hide();
+        await loadDashboard();
+    } catch (err) {
+        document.getElementById("incomeError").textContent = err.message;
+        document.getElementById("incomeError").classList.remove("d-none");
+    }
+}
+
+async function renderTaxRulesets() {
+    const rulesets = await api("/api/tax-rulesets");
+    const list = document.getElementById("taxRulesList");
+    list.innerHTML = rulesets.map((ruleset) => `<div class="card"><div class="card-body"><div class="d-flex justify-content-between"><strong>${escapeHtml(ruleset.country)} ${escapeHtml(ruleset.region_name)} (${ruleset.tax_year})</strong><button class="btn btn-sm btn-outline-danger" onclick="deleteTaxRuleset(${ruleset.id})">Delete</button></div><textarea class="form-control form-control-sm mt-2" id="ruleset-${ruleset.id}" rows="3">${ruleset.brackets.map((b) => `${b.lower_bound},${b.upper_bound ?? ""},${b.rate}`).join("\n")}</textarea><button class="btn btn-sm btn-outline-primary mt-2" onclick="saveTaxRuleset(${ruleset.id}, '${escapeHtml(ruleset.country)}', '${escapeHtml(ruleset.region_name)}', '${escapeHtml(ruleset.region_code)}', ${ruleset.tax_year})">Save brackets</button></div></div>`).join("");
+}
+
+function parseBrackets(id) {
+    return document.getElementById(`ruleset-${id}`).value.split("\n").filter(Boolean).map((line) => {
+        const [lower, upper, rate] = line.split(",");
+        return { lower_bound: parseFloat(lower) || 0, upper_bound: upper ? parseFloat(upper) : null, rate: parseFloat(rate) || 0 };
+    });
+}
+
+async function saveTaxRuleset(id, country, regionName, regionCode, taxYear) {
+    await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ country, region_name: regionName, region_code: regionCode, tax_year: taxYear, brackets: parseBrackets(id) }) });
+    await renderTaxRulesets();
+}
+
+async function deleteTaxRuleset(id) {
+    if (!confirm("Delete this tax ruleset?")) return;
+    await api(`/api/tax-rulesets/${id}`, { method: "DELETE" });
+    await renderTaxRulesets();
+}
+
+async function newTaxRuleset() {
+    const regionName = prompt("Region/province name");
+    if (!regionName) return;
+    const regionCode = prompt("Region code (for example, ON)", regionName.slice(0, 2).toUpperCase());
+    await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify({ country: "Canada", region_name: regionName, region_code: regionCode, tax_year: 2026, brackets: [{ lower_bound: 0, upper_bound: null, rate: 0 }] }) });
+    await renderTaxRulesets();
 }
 
 async function showCategory(categoryId) {

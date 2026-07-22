@@ -18,3 +18,16 @@ h1 { font-weight: 700; }
     .scorecard-form-actions { width: 100%; }
     .scorecard-form-actions .btn { flex: 1 1 0; }
 }
+
+.income-option {
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    padding: 1rem 1rem 1rem 2.5rem;
+    height: 100%;
+    background: #fff;
+}
+
+.income-option:has(.form-check-input:checked) {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.12);
+}

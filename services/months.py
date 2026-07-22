@@ -5,7 +5,7 @@ from services.finance import category_totals, dashboard_summary
 
 def update_income(month_id, income):
     conn = get_connection()
-    conn.execute("UPDATE months SET income = ? WHERE id = ?", (income, month_id))
+    conn.execute("UPDATE months SET income = ?, income_mode = 'simple' WHERE id = ?", (income, month_id))
     conn.commit()
     conn.close()
 
