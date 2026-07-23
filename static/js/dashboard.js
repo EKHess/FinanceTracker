@@ -99,10 +99,10 @@ function renderChart(categories) {
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillStyle = "#10223b";
-            context.font = "700 17px Inter, sans-serif";
+            context.font = "700 18px Inter, sans-serif";
             context.fillText(money.format(total), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 - 6);
             context.fillStyle = "#718096";
-            context.font = "10px Inter, sans-serif";
+            context.font = "12px Inter, sans-serif";
             context.fillText("Total Expenses", (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + 14);
             context.restore();
         },

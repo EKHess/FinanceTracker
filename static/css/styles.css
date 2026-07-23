@@ -117,3 +117,27 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Int
 .quick-recurrence-row .form-select { width: 135px; height: 36px; }
 @media (max-width: 1100px) { .quick-expense-form { grid-template-columns: repeat(2,minmax(0,1fr)); }.quick-recurring { align-items: flex-start; }.quick-recurrence-row { justify-content: flex-start; } }
 @media (max-width: 560px) { .quick-expense-form { grid-template-columns: 1fr; }.quick-recurrence-row { flex-wrap: wrap; }.quick-recurrence-row span { flex: 1 0 calc(100% - 30px); }.quick-recurrence-row .form-select { flex: 1; } }
+
+/* Accessibility type scale: improve readability without changing component geometry. */
+body { font-size: 16px; }
+.app-nav button { font-size: 14px; }
+.nav-label { font-size: 11px; }
+.month-switcher { font-size: 13px; }
+.month-switcher small { font-size: 11px; }
+.page-header h1 { font-size: 28px; }
+.page-header p, .panel-heading span { font-size: 14px; }
+.month-control, .panel-heading h2, .panel h2 { font-size: 14px; }
+.metric-card small { font-size: 12px; }
+.metric-card #incomePeriod, .metric-card #surplusCaption, .budget-usage-card #incomeUsedCaption { font-size: 11px; }
+.category-row strong, .category-amount, .category-percent { font-size: 13px; }
+.manage-link { font-size: 12px; }
+.rate-grid small { font-size: 11px; }
+.rate-grid strong { font-size: 14px; }
+.form-label, .quick-expense-form label { font-size: 13px; }
+.form-control, .form-select, .quick-expense-form .form-control, .quick-expense-form .form-select, .btn { font-size: 14px; }
+.action-panel p, .settings-title p, .empty-state p, .modal-subtitle { font-size: 14px; }
+.chart-legend>div, .chart-legend strong, .chart-legend small { font-size: 12px; }
+.quick-submit small { font-size: 11px; }
+.existing-expenses-header h5 { font-size: 18px; }
+.expense-manager-head { font-size: 12px; }
+.expense-manager-row, .show-more-expenses, .recurrence-fields, .quick-recurrence-row, .recurrence-label { font-size: 13px; }
