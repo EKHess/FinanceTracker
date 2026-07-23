@@ -82,7 +82,8 @@
                             <div id="newRulesetError" class="alert alert-danger py-2 mt-3 d-none"></div>
                         </div>
                 </div></section>
-{% for page,title,icon in [('cashflow','Cash Flow Dashboard','pie-chart'),('progress','Progress Dashboard','graph-up-arrow'),('assets','Assets','wallet2'),('liabilities','Liabilities','circle'),('recurring','Recurring Items','arrow-repeat'),('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
+<section class="app-page" id="page-recurring"><header class="page-header"><div><h1>Recurring Items</h1><p>Review and manage all recurring expenses in your current workspace.</p></div></header><div class="panel recurring-items-panel"><div class="existing-expenses-header"><h2>Recurring Expenses</h2><div class="expense-list-tools"><div class="search-wrap"><i class="bi bi-search"></i><input id="recurringExpenseSearch" class="form-control" placeholder="Search recurring expenses..." oninput="handleRecurringExpenseSearch()"></div><select id="recurringExpenseSort" class="form-select" onchange="renderRecurringExpensesPage()"><option value="date">Date</option><option value="description">Description</option><option value="category">Category</option><option value="amount">Amount</option></select></div></div><div class="expense-manager-table"><div class="expense-manager-head"><span>Date</span><span>Description</span><span>Category</span><span>Amount</span><span>Recurring</span><span></span></div><div id="recurringExpenseRows"></div><button id="showMoreRecurringExpenses" class="show-more-expenses d-none" onclick="showMoreRecurringExpenses()"></button></div></div></section>
+{% for page,title,icon in [('cashflow','Cash Flow Dashboard','pie-chart'),('progress','Progress Dashboard','graph-up-arrow'),('assets','Assets','wallet2'),('liabilities','Liabilities','circle'),('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
 </main></div>
 <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-labelledby="addExpenseTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -137,14 +138,6 @@
             </div>
         </div>
     </div>
-</div>
-
-<div class="modal fade" id="recurringExpensesModal" tabindex="-1" aria-labelledby="recurringExpensesTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
-        <div class="modal-header"><div><h5 id="recurringExpensesTitle" class="modal-title">Recurring Commitments</h5><p class="modal-subtitle">All recurring expenses in your current workspace, grouped by category.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body"><div id="recurringExpenseGroups"></div></div>
-        <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button></div>
-    </div></div>
 </div>
 
 <div class="modal fade" id="saveScorecardModal" tabindex="-1">

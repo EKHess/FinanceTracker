@@ -7,12 +7,14 @@ let workspaceTimeline = [];
 let workspaceIndex = 0;
 let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
+let visibleRecurringExpenseLimit = 5;
 
 function navigateTo(page) {
     document.querySelectorAll(".app-page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
     document.querySelectorAll(".app-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (page === "income" || page === "settings") initializeIncomeEditor();
+    if (page === "recurring") renderRecurringExpensesPage();
 }
 
 async function api(path, options = {}) {
@@ -578,6 +580,7 @@ async function submitQuickExpense(event) {
         await loadDashboard();
         resetQuickExpenseForm();
         renderExpenseManager();
+        renderRecurringExpensesPage();
         document.getElementById("quickExpenseDescription").focus();
     } catch (err) {
         const error = document.getElementById("quickExpenseError");
@@ -622,23 +625,47 @@ function recurrenceLabel(expense) {
 }
 
 function openRecurringExpensesModal() {
-    const expenses = (currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring);
-    const groups = Object.entries(window.CATEGORY_CONFIG).map(([categoryId, category]) => ({
-        categoryId,
-        category,
-        expenses: expenses.filter((expense) => expense.category === categoryId),
-    })).filter((group) => group.expenses.length);
-    const container = document.getElementById("recurringExpenseGroups");
-    if (!groups.length) {
-        container.innerHTML = '<div class="recurring-empty"><i class="bi bi-arrow-repeat"></i><strong>No recurring expenses</strong><span>Add a recurring expense to see it summarized here.</span></div>';
-    } else {
-        container.innerHTML = groups.map(({ category, expenses: categoryExpenses }) => {
-            const total = categoryExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-            const rows = categoryExpenses.map((expense) => `<div class="recurring-expense-row"><div><strong>${escapeHtml(expense.description)}</strong><span>${formatExpenseDate(expense.expense_date)}</span></div><span>${recurrenceLabel(expense)}</span><strong>${money.format(expense.amount)}</strong></div>`).join("");
-            return `<section class="recurring-category-group" style="--recurring-color:${category.color}"><header><div><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><strong>${escapeHtml(category.label)}</strong></div><strong>${money.format(total)}</strong></header>${rows}</section>`;
-        }).join("");
-    }
-    new bootstrap.Modal(document.getElementById("recurringExpensesModal")).show();
+    navigateTo("recurring");
+}
+
+function handleRecurringExpenseSearch() {
+    visibleRecurringExpenseLimit = 5;
+    renderRecurringExpensesPage();
+}
+
+function sortedRecurringExpenses() {
+    const prefix = document.getElementById("recurringExpenseSearch").value.trim().toLocaleLowerCase();
+    const sort = document.getElementById("recurringExpenseSort").value;
+    const expenses = (currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring && expense.description.toLocaleLowerCase().startsWith(prefix));
+    const byDescription = (a, b) => a.description.localeCompare(b.description, undefined, { sensitivity: "base" });
+    if (sort === "description") expenses.sort(byDescription);
+    else if (sort === "category") expenses.sort((a, b) => (window.CATEGORY_CONFIG[a.category]?.label || a.category).localeCompare(window.CATEGORY_CONFIG[b.category]?.label || b.category) || byDescription(a, b));
+    else if (sort === "amount") expenses.sort((a, b) => Number(b.amount) - Number(a.amount) || byDescription(a, b));
+    else expenses.sort((a, b) => (b.expense_date || "").localeCompare(a.expense_date || "") || byDescription(a, b));
+    return expenses;
+}
+
+function renderRecurringExpensesPage() {
+    const expenses = sortedRecurringExpenses();
+    const visible = expenses.slice(0, visibleRecurringExpenseLimit);
+    document.getElementById("recurringExpenseRows").innerHTML = visible.length ? visible.map((expense) => {
+        const category = window.CATEGORY_CONFIG[expense.category] || { label: expense.category, color: "#718096" };
+        return `<div class="expense-manager-row"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit recurring expense" onclick="editRecurringExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete recurring expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
+    }).join("") : '<div class="expense-manager-empty">No matching recurring expenses.</div>';
+    const remaining = expenses.length - visible.length;
+    const more = document.getElementById("showMoreRecurringExpenses");
+    more.classList.toggle("d-none", remaining <= 0);
+    more.textContent = remaining > 0 ? `Show more (${remaining})⌄` : "";
+}
+
+function showMoreRecurringExpenses() {
+    visibleRecurringExpenseLimit = Number.MAX_SAFE_INTEGER;
+    renderRecurringExpensesPage();
+}
+
+function editRecurringExpense(id) {
+    openAddExpenseModal();
+    editManagedExpense(id);
 }
 
 function renderExpenseManager() {
@@ -680,6 +707,7 @@ async function deleteManagedExpense(id) {
     await api(`/api/expenses/${id}`, { method: "DELETE" });
     await loadDashboard();
     renderExpenseManager();
+    renderRecurringExpensesPage();
 }
 
 function toggleExpenseForm(expense = null) {
