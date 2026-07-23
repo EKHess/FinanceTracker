@@ -102,3 +102,15 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Int
 #addExpenseModal .modal-footer { padding: 18px 28px 25px; border-top: 0; }
 @media (max-width: 950px) { .quick-expense-form { grid-template-columns: repeat(2,1fr); }.quick-recurring { justify-items: start; }.existing-expenses-header { align-items: stretch; flex-direction: column; }.expense-list-tools,.search-wrap { width: 100%; }.expense-list-tools select { width: 150px; }.expense-manager-table { overflow-x: auto; } }
 @media (max-width: 560px) { .quick-expense-form { grid-template-columns: 1fr; }.expense-list-tools { flex-direction: column; }.expense-list-tools select { width: 100%; } }
+.recurrence-fields { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
+.recurrence-fields .form-control { width: 64px; }
+.recurrence-fields .form-select { width: 120px; }
+.quick-expense-form { grid-template-columns: 1.6fr 1.5fr .85fr 1.15fr 1.35fr .9fr; align-items: start; }
+.quick-recurring { height: auto; display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; justify-items: start; align-content: start; }
+.quick-recurring>label { grid-column: 1 / -1; }
+.quick-recurring .form-check-input { margin: 13px 0 0; }
+.quick-recurring .recurrence-fields { margin-top: 3px; }
+.quick-recurring .recurrence-fields .form-control { height: 36px; width: 48px; padding-inline: 6px; }
+.quick-recurring .recurrence-fields .form-select { height: 36px; width: 82px; padding-inline: 7px 22px; }
+.recurrence-label { color: var(--muted); font-size: 10px; }
+@media (max-width: 950px) { .quick-expense-form { grid-template-columns: repeat(2,1fr); }.quick-recurring { min-height: 74px; } }

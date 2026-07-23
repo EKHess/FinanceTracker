@@ -481,6 +481,9 @@ function resetQuickExpenseForm() {
     document.getElementById("quickExpenseForm").reset();
     document.getElementById("quickExpenseId").value = "";
     document.getElementById("quickExpenseDate").value = localToday();
+    document.getElementById("quickExpenseRecurrenceInterval").value = 1;
+    document.getElementById("quickExpenseRecurrenceUnit").value = "month";
+    syncRecurrenceFields("quickExpense");
     document.getElementById("quickExpenseSubmit").querySelector("span").textContent = "Add Expense";
     document.getElementById("quickExpenseError").classList.add("d-none");
 }
@@ -496,6 +499,8 @@ async function submitQuickExpense(event) {
         amount: parseFloat(document.getElementById("quickExpenseAmount").value),
         expense_date: document.getElementById("quickExpenseDate").value,
         recurring: document.getElementById("quickExpenseRecurring").checked,
+        recurrence_interval: parseInt(document.getElementById("quickExpenseRecurrenceInterval").value, 10) || 1,
+        recurrence_unit: document.getElementById("quickExpenseRecurrenceUnit").value,
     };
     try {
         await api(id ? `/api/expenses/${id}` : "/api/expenses", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
@@ -533,12 +538,24 @@ function formatExpenseDate(value) {
     return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(year, month - 1, day));
 }
 
+function syncRecurrenceFields(prefix) {
+    const recurring = document.getElementById(`${prefix}Recurring`).checked;
+    document.getElementById(`${prefix}RecurrenceFields`).classList.toggle("d-none", !recurring);
+}
+
+function recurrenceLabel(expense) {
+    if (!expense.recurring) return "—";
+    const interval = Number(expense.recurrence_interval) || 1;
+    const unit = expense.recurrence_unit || "month";
+    return `Every ${interval} ${unit}${interval === 1 ? "" : "s"}`;
+}
+
 function renderExpenseManager() {
     const expenses = sortedManagerExpenses();
     const visible = expenses.slice(0, visibleExpenseLimit);
     document.getElementById("expenseManagerRows").innerHTML = visible.length ? visible.map((expense) => {
         const category = window.CATEGORY_CONFIG[expense.category] || { label: expense.category, color: "#718096" };
-        return `<div class="expense-manager-row"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span>${expense.recurring ? '<i class="bi bi-check-square-fill recurring-check"></i>' : "—"}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
+        return `<div class="expense-manager-row"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
     }).join("") : '<div class="expense-manager-empty">No matching expenses.</div>';
     const remaining = expenses.length - visible.length;
     const more = document.getElementById("showMoreExpenses");
@@ -560,6 +577,9 @@ function editManagedExpense(id) {
     document.getElementById("quickExpenseAmount").value = expense.amount;
     document.getElementById("quickExpenseDate").value = expense.expense_date || localToday();
     document.getElementById("quickExpenseRecurring").checked = Boolean(expense.recurring);
+    document.getElementById("quickExpenseRecurrenceInterval").value = expense.recurrence_interval || 1;
+    document.getElementById("quickExpenseRecurrenceUnit").value = expense.recurrence_unit || "month";
+    syncRecurrenceFields("quickExpense");
     document.getElementById("quickExpenseSubmit").querySelector("span").textContent = "Update Expense";
     document.getElementById("quickExpenseDescription").focus();
 }
@@ -578,6 +598,9 @@ function toggleExpenseForm(expense = null) {
     document.getElementById("expenseAmount").value = expense?.amount || "";
     document.getElementById("expenseDate").value = expense?.expense_date || localToday();
     document.getElementById("expenseRecurring").checked = Boolean(expense?.recurring);
+    document.getElementById("expenseRecurrenceInterval").value = expense?.recurrence_interval || 1;
+    document.getElementById("expenseRecurrenceUnit").value = expense?.recurrence_unit || "month";
+    syncRecurrenceFields("expense");
 }
 
 async function saveExpense() {
@@ -588,6 +611,8 @@ async function saveExpense() {
         expense_date: document.getElementById("expenseDate").value,
         category: selectedCategory,
         recurring: document.getElementById("expenseRecurring").checked,
+        recurrence_interval: parseInt(document.getElementById("expenseRecurrenceInterval").value, 10) || 1,
+        recurrence_unit: document.getElementById("expenseRecurrenceUnit").value,
     };
     const path = expenseId ? `/api/expenses/${expenseId}` : "/api/expenses";
     await api(path, { method: expenseId ? "PUT" : "POST", body: JSON.stringify(payload) });
@@ -604,7 +629,7 @@ async function refreshCategory() {
     expenses.forEach((expense) => {
         total += expense.amount;
         const row = document.createElement("tr");
-        row.innerHTML = `<td>${formatExpenseDate(expense.expense_date)}</td><td>${escapeHtml(expense.description)}</td><td>${money.format(expense.amount)}</td><td>${expense.recurring ? "✓" : ""}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
+        row.innerHTML = `<td>${formatExpenseDate(expense.expense_date)}</td><td>${escapeHtml(expense.description)}</td><td>${money.format(expense.amount)}</td><td>${recurrenceLabel(expense)}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
         row.querySelector(".btn-outline-primary").addEventListener("click", () => toggleExpenseForm(expense));
         row.querySelector(".btn-outline-danger").addEventListener("click", () => deleteExpense(expense.id));
         table.appendChild(row);
@@ -703,6 +728,9 @@ function showScorecardExpenseForm(expense = null) {
     document.getElementById("scorecardExpenseAmount").value = expense?.amount || "";
     document.getElementById("scorecardExpenseCategory").value = expense?.category || "fixed";
     document.getElementById("scorecardExpenseRecurring").checked = Boolean(expense?.recurring);
+    document.getElementById("scorecardExpenseRecurrenceInterval").value = expense?.recurrence_interval || 1;
+    document.getElementById("scorecardExpenseRecurrenceUnit").value = expense?.recurrence_unit || "month";
+    syncRecurrenceFields("scorecardExpense");
 }
 
 function hideScorecardExpenseForm() {
@@ -716,6 +744,8 @@ async function saveScorecardExpense() {
         amount: parseFloat(document.getElementById("scorecardExpenseAmount").value) || 0,
         category: document.getElementById("scorecardExpenseCategory").value,
         recurring: document.getElementById("scorecardExpenseRecurring").checked,
+        recurrence_interval: parseInt(document.getElementById("scorecardExpenseRecurrenceInterval").value, 10) || 1,
+        recurrence_unit: document.getElementById("scorecardExpenseRecurrenceUnit").value,
     };
     const path = editingScorecardExpenseId ? `/api/scorecards/${activeScorecardId}/expenses/${editingScorecardExpenseId}` : `/api/scorecards/${activeScorecardId}/expenses`;
     const method = editingScorecardExpenseId ? "PUT" : "POST";
@@ -785,7 +815,7 @@ function renderScorecardDetails(scorecard) {
                         </div>
                         <div class="col-12 d-flex flex-wrap justify-content-between align-items-center gap-3">
                             <div class="form-check mb-0">
-                                <input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox">
+                                <input id="scorecardExpenseRecurring" class="form-check-input" type="checkbox" onchange="syncRecurrenceFields('scorecardExpense')">
                                 <label class="form-check-label" for="scorecardExpenseRecurring">Recurring charge</label>
                             </div>
                             <div class="d-flex flex-wrap gap-2 scorecard-form-actions">
@@ -793,6 +823,7 @@ function renderScorecardDetails(scorecard) {
                                 <button class="btn btn-outline-secondary" onclick="hideScorecardExpenseForm()">Cancel</button>
                             </div>
                         </div>
+                        <div id="scorecardExpenseRecurrenceFields" class="col-12 recurrence-fields d-none"><span>Every</span><input id="scorecardExpenseRecurrenceInterval" class="form-control" type="number" min="1" step="1" value="1"><select id="scorecardExpenseRecurrenceUnit" class="form-select"><option value="day">day(s)</option><option value="week">week(s)</option><option value="month" selected>month(s)</option><option value="year">year(s)</option></select></div>
                     </div>
                 </div>
             </div>
@@ -803,7 +834,7 @@ function renderScorecardDetails(scorecard) {
         const section = document.createElement("div");
         section.className = "card category-summary mb-3";
         section.style.setProperty("--category-color", category.color);
-        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? "Recurring" : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
+        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? recurrenceLabel(expense) : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
         section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
         section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
         section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));

@@ -1,6 +1,6 @@
 from config import CATEGORY_CONFIG
 from database import get_connection
-from services.expenses import normalize_category, normalize_expense_date
+from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
 
 
@@ -8,7 +8,7 @@ def _scorecard_expenses(scorecard_id):
     conn = get_connection()
     rows = conn.execute(
         """
-        SELECT id, description, amount, category, recurring, expense_date
+        SELECT id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit
         FROM scorecard_expenses
         WHERE scorecard_id = ?
         ORDER BY category, description
@@ -140,8 +140,8 @@ def create_scorecard(month_id, name, start_date, end_date):
 
     cursor.executemany(
         """
-        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -151,6 +151,8 @@ def create_scorecard(month_id, name, start_date, end_date):
                 expense["category"],
                 1 if expense["recurring"] else 0,
                 expense["expense_date"],
+                expense["recurrence_interval"],
+                expense["recurrence_unit"],
             )
             for expense in expenses
         ],
@@ -181,18 +183,19 @@ def delete_scorecard(scorecard_id):
     return True
 
 
-def add_scorecard_expense(scorecard_id, description, amount, category, recurring, expense_date=None):
+def add_scorecard_expense(scorecard_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     description, amount, category = _validate_expense(description, amount, category)
+    recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
     if not _scorecard_exists(conn, scorecard_id):
         conn.close()
         return None
     conn.execute(
         """
-        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (scorecard_id, description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date)),
+        (scorecard_id, description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date), recurrence_interval, recurrence_unit),
     )
     _refresh_scorecard_total(conn, scorecard_id)
     conn.commit()
@@ -200,16 +203,17 @@ def add_scorecard_expense(scorecard_id, description, amount, category, recurring
     return get_scorecard(scorecard_id)
 
 
-def update_scorecard_expense(scorecard_id, expense_id, description, amount, category, recurring, expense_date=None):
+def update_scorecard_expense(scorecard_id, expense_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     description, amount, category = _validate_expense(description, amount, category)
+    recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
     cursor = conn.execute(
         """
         UPDATE scorecard_expenses
-        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date)
+        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date), recurrence_interval = ?, recurrence_unit = ?
         WHERE id = ? AND scorecard_id = ?
         """,
-        (description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, expense_id, scorecard_id),
+        (description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, recurrence_interval, recurrence_unit, expense_id, scorecard_id),
     )
     if cursor.rowcount == 0:
         conn.close()

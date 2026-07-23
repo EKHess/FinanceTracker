@@ -63,6 +63,8 @@ def initialize_database():
         amount REAL NOT NULL,
         category TEXT NOT NULL,
         recurring INTEGER DEFAULT 0,
+        recurrence_interval INTEGER NOT NULL DEFAULT 1,
+        recurrence_unit TEXT NOT NULL DEFAULT 'month',
         expense_date TEXT NOT NULL,
 
         FOREIGN KEY(month_id)
@@ -90,6 +92,8 @@ def initialize_database():
         amount REAL NOT NULL,
         category TEXT NOT NULL,
         recurring INTEGER DEFAULT 0,
+        recurrence_interval INTEGER NOT NULL DEFAULT 1,
+        recurrence_unit TEXT NOT NULL DEFAULT 'month',
         expense_date TEXT NOT NULL,
         FOREIGN KEY(scorecard_id)
             REFERENCES scorecards(id)
@@ -134,6 +138,10 @@ def initialize_database():
     _ensure_column(cursor, "tax_rulesets", "basic_personal_credit_amount", "REAL NOT NULL DEFAULT 0")
     _ensure_column(cursor, "expenses", "expense_date", "TEXT")
     _ensure_column(cursor, "scorecard_expenses", "expense_date", "TEXT")
+    _ensure_column(cursor, "expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "scorecard_expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "scorecard_expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
     cursor.execute(
         "UPDATE expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
         (date.today().isoformat(),),

@@ -140,28 +140,28 @@ def api_expenses():
 @app.route("/api/expenses", methods=["POST"])
 def api_add_expense():
     data = request.get_json() or {}
-    add_expense(
-        get_current_month()["id"],
-        data["description"],
-        float(data["amount"]),
-        data["category"],
-        bool(data.get("recurring", False)),
-        data.get("expense_date"),
-    )
+    try:
+        add_expense(
+            get_current_month()["id"], data["description"], float(data["amount"]),
+            data["category"], bool(data.get("recurring", False)), data.get("expense_date"),
+            data.get("recurrence_interval", 1), data.get("recurrence_unit", "month"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
     return jsonify({"success": True})
 
 
 @app.route("/api/expenses/<int:id>", methods=["PUT"])
 def api_update_expense(id):
     data = request.get_json() or {}
-    update_expense(
-        id,
-        data["description"],
-        float(data["amount"]),
-        data["category"],
-        bool(data.get("recurring", False)),
-        data.get("expense_date"),
-    )
+    try:
+        update_expense(
+            id, data["description"], float(data["amount"]), data["category"],
+            bool(data.get("recurring", False)), data.get("expense_date"),
+            data.get("recurrence_interval", 1), data.get("recurrence_unit", "month"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
     return jsonify({"success": True})
 
 
@@ -216,6 +216,8 @@ def api_add_scorecard_expense(id):
             data.get("category", ""),
             bool(data.get("recurring", False)),
             data.get("expense_date"),
+            data.get("recurrence_interval", 1),
+            data.get("recurrence_unit", "month"),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -236,6 +238,8 @@ def api_update_scorecard_expense(id, expense_id):
             data.get("category", ""),
             bool(data.get("recurring", False)),
             data.get("expense_date"),
+            data.get("recurrence_interval", 1),
+            data.get("recurrence_unit", "month"),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -265,7 +269,7 @@ def api_export_scorecard_csv(id):
     writer.writerow(["End Date", scorecard["end_date"]])
     writer.writerow(["Total Spending", scorecard["total_spending"]])
     writer.writerow([])
-    writer.writerow(["Category", "Description", "Amount", "Recurring"])
+    writer.writerow(["Category", "Description", "Amount", "Recurring", "Recurrence Interval", "Recurrence Unit"])
 
     category_labels = {category["id"]: category["label"] for category in scorecard["categories"]}
     for expense in scorecard["expenses"]:
@@ -274,6 +278,8 @@ def api_export_scorecard_csv(id):
             expense["description"],
             expense["amount"],
             "Yes" if expense["recurring"] else "No",
+            expense["recurrence_interval"] if expense["recurring"] else "",
+            expense["recurrence_unit"] if expense["recurring"] else "",
         ])
 
     filename = f"scorecard-{id}.csv"
