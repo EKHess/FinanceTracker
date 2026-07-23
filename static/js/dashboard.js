@@ -93,6 +93,7 @@ async function displayWorkspace(index) {
     document.getElementById("nextWorkspace").disabled = index === workspaceTimeline.length - 1;
     document.getElementById("addExpenseButton").disabled = historical;
     document.getElementById("saveWorkspaceButton").disabled = historical;
+    document.getElementById("viewRecurringButton").disabled = historical;
     document.querySelectorAll("#categoryCards .category-row").forEach((button) => button.disabled = historical);
 }
 
@@ -110,8 +111,6 @@ function renderSummary(summary) {
     }
     document.getElementById("spending").textContent = money.format(summary.spending);
     document.getElementById("recurringTotal").textContent = money.format(summary.recurring_total);
-    document.getElementById("savingsRate").textContent = `${summary.savings_rate.toFixed(1)}%`;
-    document.getElementById("investmentRate").textContent = `${summary.investment_rate.toFixed(1)}%`;
 
     const surplus = document.getElementById("surplus");
     surplus.textContent = money.format(summary.surplus);
@@ -620,6 +619,26 @@ function recurrenceLabel(expense) {
     const interval = Number(expense.recurrence_interval) || 1;
     const unit = expense.recurrence_unit || "month";
     return `Every ${interval} ${unit}${interval === 1 ? "" : "s"}`;
+}
+
+function openRecurringExpensesModal() {
+    const expenses = (currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring);
+    const groups = Object.entries(window.CATEGORY_CONFIG).map(([categoryId, category]) => ({
+        categoryId,
+        category,
+        expenses: expenses.filter((expense) => expense.category === categoryId),
+    })).filter((group) => group.expenses.length);
+    const container = document.getElementById("recurringExpenseGroups");
+    if (!groups.length) {
+        container.innerHTML = '<div class="recurring-empty"><i class="bi bi-arrow-repeat"></i><strong>No recurring expenses</strong><span>Add a recurring expense to see it summarized here.</span></div>';
+    } else {
+        container.innerHTML = groups.map(({ category, expenses: categoryExpenses }) => {
+            const total = categoryExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+            const rows = categoryExpenses.map((expense) => `<div class="recurring-expense-row"><div><strong>${escapeHtml(expense.description)}</strong><span>${formatExpenseDate(expense.expense_date)}</span></div><span>${recurrenceLabel(expense)}</span><strong>${money.format(expense.amount)}</strong></div>`).join("");
+            return `<section class="recurring-category-group" style="--recurring-color:${category.color}"><header><div><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><strong>${escapeHtml(category.label)}</strong></div><strong>${money.format(total)}</strong></header>${rows}</section>`;
+        }).join("");
+    }
+    new bootstrap.Modal(document.getElementById("recurringExpensesModal")).show();
 }
 
 function renderExpenseManager() {

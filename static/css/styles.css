@@ -150,3 +150,18 @@ body { font-size: 16px; }
 .workspace-control strong { display: grid; place-items: center; padding: 0 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .category-row:disabled { opacity: .72; cursor: default; }
 @media (max-width: 700px) { .workspace-control { width: 100%; }.header-actions { width: 100%; }.header-actions .btn { width: 100%; } }
+.recurring-summary { margin-top: 18px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; border: 1px solid #cfe8dc; border-radius: 9px; background: linear-gradient(90deg,#f0faf5,#fbfefd); }
+.recurring-summary-icon { flex: 0 0 44px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #dff4e9; color: var(--green); font-size: 20px; }
+.recurring-summary>div { display: grid; gap: 2px; }
+.recurring-summary small { color: #567064; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.recurring-summary strong { color: var(--ink); font-size: 22px; }
+.recurring-summary button { width: fit-content; padding: 2px 0; border: 0; background: transparent; color: #0879e8; font-size: 13px; font-weight: 700; }
+.recurring-summary button:disabled { color: #9eabb5; cursor: not-allowed; }
+.recurring-category-group { margin-bottom: 16px; overflow: hidden; border: 1px solid var(--line); border-left: 4px solid var(--recurring-color); border-radius: 8px; }
+.recurring-category-group:last-child { margin-bottom: 0; }
+.recurring-category-group header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; background: #f8fafb; }
+.recurring-category-group header>div { display: flex; align-items: center; gap: 10px; }
+.recurring-expense-row { padding: 13px 16px; display: grid; grid-template-columns: minmax(0,1fr) 150px auto; gap: 14px; align-items: center; border-top: 1px solid var(--line); font-size: 13px; }
+.recurring-expense-row>div { display: grid; }.recurring-expense-row>div span,.recurring-expense-row>span { color: var(--muted); }
+.recurring-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--muted); text-align: center; }.recurring-empty i { color: #9eb5aa; font-size: 36px; }.recurring-empty strong { color: var(--ink); font-size: 17px; }
+@media (max-width: 600px) { .recurring-expense-row { grid-template-columns: 1fr auto; }.recurring-expense-row>span { grid-column: 1 / -1; grid-row: 2; } }

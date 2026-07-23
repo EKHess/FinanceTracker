@@ -45,7 +45,7 @@
     </div>
     <div class="row g-3">
       <div class="col-xl-5"><div class="panel h-100 category-panel"><div class="panel-heading"><h2>Expenses by Category</h2></div><div id="categoryCards">{% for category_id, category in categories.items() %}<button class="category-row" data-category-id="{{ category_id }}" onclick="showCategory('{{ category_id }}')"><span class="category-icon" style="color: {{ category.color }}; background: {{ category.color }}18"><i class="bi bi-{{ category.icon }}"></i></span><strong>{{ category.label }}</strong><span class="category-amount" id="{{ category_id }}-total">$0.00</span><span class="category-percent" id="{{ category_id }}-percent">0.0%</span><span class="visually-hidden" id="{{ category_id }}-count">0</span><span class="visually-hidden" id="{{ category_id }}-caption">0 expenses</span></button>{% endfor %}</div><button class="manage-link" onclick="navigateTo('categories')">Manage Categories <i class="bi bi-arrow-right"></i></button></div></div>
-      <div class="col-xl-7"><div class="panel h-100"><div class="panel-heading"><h2>Spending Overview</h2></div><div class="spending-layout"><div class="chart-square"><canvas id="categoryChart"></canvas></div><div id="categoryLegend" class="chart-legend"></div></div><div class="rate-grid"><div><small>Recurring commitments</small><strong id="recurringTotal">$0.00</strong></div><div><small>Savings rate</small><strong id="savingsRate">0.0%</strong></div><div><small>Investment rate</small><strong id="investmentRate">0.0%</strong></div></div></div></div>
+      <div class="col-xl-7"><div class="panel h-100"><div class="panel-heading"><h2>Spending Overview</h2></div><div class="spending-layout"><div class="chart-square"><canvas id="categoryChart"></canvas></div><div id="categoryLegend" class="chart-legend"></div></div><div class="recurring-summary"><span class="recurring-summary-icon"><i class="bi bi-arrow-repeat"></i></span><div><small>Recurring Commitments</small><strong id="recurringTotal">$0.00</strong><button id="viewRecurringButton" onclick="openRecurringExpensesModal()">View all recurring <i class="bi bi-arrow-right"></i></button></div></div></div></div>
     </div>
 </section>
 <section class="app-page" id="page-income">
@@ -137,6 +137,14 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="modal fade" id="recurringExpensesModal" tabindex="-1" aria-labelledby="recurringExpensesTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+        <div class="modal-header"><div><h5 id="recurringExpensesTitle" class="modal-title">Recurring Commitments</h5><p class="modal-subtitle">All recurring expenses in your current workspace, grouped by category.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><div id="recurringExpenseGroups"></div></div>
+        <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button></div>
+    </div></div>
 </div>
 
 <div class="modal fade" id="saveScorecardModal" tabindex="-1">
