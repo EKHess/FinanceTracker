@@ -105,12 +105,15 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Int
 .recurrence-fields { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 11px; }
 .recurrence-fields .form-control { width: 64px; }
 .recurrence-fields .form-select { width: 120px; }
-.quick-expense-form { grid-template-columns: 1.6fr 1.5fr .85fr 1.15fr 1.35fr .9fr; align-items: start; }
-.quick-recurring { height: auto; display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; justify-items: start; align-content: start; }
-.quick-recurring>label { grid-column: 1 / -1; }
-.quick-recurring .form-check-input { margin: 13px 0 0; }
-.quick-recurring .recurrence-fields { margin-top: 3px; }
-.quick-recurring .recurrence-fields .form-control { height: 36px; width: 48px; padding-inline: 6px; }
-.quick-recurring .recurrence-fields .form-select { height: 36px; width: 82px; padding-inline: 7px 22px; }
 .recurrence-label { color: var(--muted); font-size: 10px; }
-@media (max-width: 950px) { .quick-expense-form { grid-template-columns: repeat(2,1fr); }.quick-recurring { min-height: 74px; } }
+/* Keep recurrence scheduling on its own row so primary expense fields never compress it. */
+.quick-expense-form { grid-template-columns: minmax(180px,1.6fr) minmax(170px,1.45fr) minmax(95px,.8fr) minmax(135px,1.1fr) minmax(82px,.6fr) minmax(115px,.9fr); align-items: start; }
+.quick-recurring { min-width: 82px; height: 74px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; }
+.quick-recurring>label { margin: 0; }
+.quick-recurring .form-check-input { width: 19px; height: 19px; margin: 5px 0 0; }
+.quick-recurrence-row { grid-column: 1 / -1; min-height: 52px; padding: 10px 14px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; border: 1px solid #dfe9e4; border-radius: 7px; background: #f7fbf9; color: #486257; font-size: 11px; font-weight: 650; }
+.quick-recurrence-row>i { color: var(--green); font-size: 15px; }
+.quick-recurrence-row .form-control { width: 72px; height: 36px; }
+.quick-recurrence-row .form-select { width: 135px; height: 36px; }
+@media (max-width: 1100px) { .quick-expense-form { grid-template-columns: repeat(2,minmax(0,1fr)); }.quick-recurring { align-items: flex-start; }.quick-recurrence-row { justify-content: flex-start; } }
+@media (max-width: 560px) { .quick-expense-form { grid-template-columns: 1fr; }.quick-recurrence-row { flex-wrap: wrap; }.quick-recurrence-row span { flex: 1 0 calc(100% - 30px); }.quick-recurrence-row .form-select { flex: 1; } }
