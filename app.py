@@ -146,6 +146,7 @@ def api_add_expense():
         float(data["amount"]),
         data["category"],
         bool(data.get("recurring", False)),
+        data.get("expense_date"),
     )
     return jsonify({"success": True})
 
@@ -159,6 +160,7 @@ def api_update_expense(id):
         float(data["amount"]),
         data["category"],
         bool(data.get("recurring", False)),
+        data.get("expense_date"),
     )
     return jsonify({"success": True})
 
@@ -213,6 +215,7 @@ def api_add_scorecard_expense(id):
             data.get("amount", 0),
             data.get("category", ""),
             bool(data.get("recurring", False)),
+            data.get("expense_date"),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -232,6 +235,7 @@ def api_update_scorecard_expense(id, expense_id):
             data.get("amount", 0),
             data.get("category", ""),
             bool(data.get("recurring", False)),
+            data.get("expense_date"),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

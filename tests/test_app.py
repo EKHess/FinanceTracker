@@ -64,6 +64,30 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
     assert client.get("/api/dashboard").get_json()["summary"]["spending"] == 0
 
 
+def test_expenses_store_default_and_explicit_dates(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import database
+    import app as app_module
+    from datetime import date
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/expenses", json={
+        "description": "Coffee", "amount": 4.5, "category": "guilt_free"
+    }).status_code == 200
+    coffee = client.get("/api/expenses").get_json()[0]
+    assert coffee["expense_date"] == date.today().isoformat()
+
+    assert client.put(f"/api/expenses/{coffee['id']}", json={
+        "description": "Coffee", "amount": 4.5, "category": "guilt_free",
+        "expense_date": "2026-06-02",
+    }).status_code == 200
+    assert client.get("/api/expenses").get_json()[0]["expense_date"] == "2026-06-02"
+
+
 def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

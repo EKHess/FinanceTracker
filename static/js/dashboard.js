@@ -3,6 +3,7 @@ let selectedCategory = "";
 let categoryChart;
 let dashboardState = { categories: [], expenses: [], summary: {} };
 let incomeEditorLoaded = false;
+let visibleExpenseLimit = 5;
 
 function navigateTo(page) {
     document.querySelectorAll(".app-page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
@@ -64,8 +65,6 @@ function renderCategories(categories) {
         document.getElementById(`${category.id}-count`).textContent = category.count;
         document.getElementById(`${category.id}-caption`).textContent = `${category.count} expense${category.count === 1 ? "" : "s"}`;
         document.getElementById(`${category.id}-percent`).textContent = `${percentage.toFixed(1)}%`;
-        document.getElementById(`picker-${category.id}-total`).textContent = money.format(category.total);
-        document.getElementById(`picker-${category.id}-percent`).textContent = `${percentage.toFixed(1)}%`;
     });
     renderCategoryLegend(categories, income);
 }
@@ -465,14 +464,111 @@ async function showCategory(categoryId) {
 }
 
 function openAddExpenseModal() {
+    resetQuickExpenseForm();
+    document.getElementById("expenseSearch").value = "";
+    document.getElementById("expenseSort").value = "date";
+    visibleExpenseLimit = 5;
+    renderExpenseManager();
     new bootstrap.Modal(document.getElementById("addExpenseModal")).show();
 }
 
-function selectExpenseCategory(categoryId) {
-    const picker = bootstrap.Modal.getInstance(document.getElementById("addExpenseModal"));
-    const pickerElement = document.getElementById("addExpenseModal");
-    pickerElement.addEventListener("hidden.bs.modal", () => showCategory(categoryId), { once: true });
-    picker.hide();
+function localToday() {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
+
+function resetQuickExpenseForm() {
+    document.getElementById("quickExpenseForm").reset();
+    document.getElementById("quickExpenseId").value = "";
+    document.getElementById("quickExpenseDate").value = localToday();
+    document.getElementById("quickExpenseSubmit").querySelector("span").textContent = "Add Expense";
+    document.getElementById("quickExpenseError").classList.add("d-none");
+}
+
+async function submitQuickExpense(event) {
+    event.preventDefault();
+    const form = document.getElementById("quickExpenseForm");
+    if (!form.reportValidity()) return;
+    const id = document.getElementById("quickExpenseId").value;
+    const payload = {
+        description: document.getElementById("quickExpenseDescription").value.trim(),
+        category: document.getElementById("quickExpenseCategory").value,
+        amount: parseFloat(document.getElementById("quickExpenseAmount").value),
+        expense_date: document.getElementById("quickExpenseDate").value,
+        recurring: document.getElementById("quickExpenseRecurring").checked,
+    };
+    try {
+        await api(id ? `/api/expenses/${id}` : "/api/expenses", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
+        await loadDashboard();
+        resetQuickExpenseForm();
+        renderExpenseManager();
+        document.getElementById("quickExpenseDescription").focus();
+    } catch (err) {
+        const error = document.getElementById("quickExpenseError");
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
+}
+
+function handleExpenseSearch() {
+    visibleExpenseLimit = 5;
+    renderExpenseManager();
+}
+
+function sortedManagerExpenses() {
+    const prefix = document.getElementById("expenseSearch").value.trim().toLocaleLowerCase();
+    const sort = document.getElementById("expenseSort").value;
+    const expenses = dashboardState.expenses.filter((expense) => expense.description.toLocaleLowerCase().startsWith(prefix));
+    const byDescription = (a, b) => a.description.localeCompare(b.description, undefined, { sensitivity: "base" });
+    if (sort === "description") expenses.sort(byDescription);
+    else if (sort === "category") expenses.sort((a, b) => (window.CATEGORY_CONFIG[a.category]?.label || a.category).localeCompare(window.CATEGORY_CONFIG[b.category]?.label || b.category) || byDescription(a, b));
+    else if (sort === "amount") expenses.sort((a, b) => Number(b.amount) - Number(a.amount) || byDescription(a, b));
+    else expenses.sort((a, b) => (b.expense_date || "").localeCompare(a.expense_date || "") || byDescription(a, b));
+    return expenses;
+}
+
+function formatExpenseDate(value) {
+    if (!value) return "—";
+    const [year, month, day] = value.split("-").map(Number);
+    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(year, month - 1, day));
+}
+
+function renderExpenseManager() {
+    const expenses = sortedManagerExpenses();
+    const visible = expenses.slice(0, visibleExpenseLimit);
+    document.getElementById("expenseManagerRows").innerHTML = visible.length ? visible.map((expense) => {
+        const category = window.CATEGORY_CONFIG[expense.category] || { label: expense.category, color: "#718096" };
+        return `<div class="expense-manager-row"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span>${expense.recurring ? '<i class="bi bi-check-square-fill recurring-check"></i>' : "—"}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
+    }).join("") : '<div class="expense-manager-empty">No matching expenses.</div>';
+    const remaining = expenses.length - visible.length;
+    const more = document.getElementById("showMoreExpenses");
+    more.classList.toggle("d-none", remaining <= 0);
+    more.textContent = remaining > 0 ? `Show more (${remaining})⌄` : "";
+}
+
+function showMoreExpenses() {
+    visibleExpenseLimit = Number.MAX_SAFE_INTEGER;
+    renderExpenseManager();
+}
+
+function editManagedExpense(id) {
+    const expense = dashboardState.expenses.find((item) => item.id === id);
+    if (!expense) return;
+    document.getElementById("quickExpenseId").value = expense.id;
+    document.getElementById("quickExpenseDescription").value = expense.description;
+    document.getElementById("quickExpenseCategory").value = expense.category;
+    document.getElementById("quickExpenseAmount").value = expense.amount;
+    document.getElementById("quickExpenseDate").value = expense.expense_date || localToday();
+    document.getElementById("quickExpenseRecurring").checked = Boolean(expense.recurring);
+    document.getElementById("quickExpenseSubmit").querySelector("span").textContent = "Update Expense";
+    document.getElementById("quickExpenseDescription").focus();
+}
+
+async function deleteManagedExpense(id) {
+    if (!confirm("Delete this expense?")) return;
+    await api(`/api/expenses/${id}`, { method: "DELETE" });
+    await loadDashboard();
+    renderExpenseManager();
 }
 
 function toggleExpenseForm(expense = null) {
@@ -480,6 +576,7 @@ function toggleExpenseForm(expense = null) {
     document.getElementById("expenseId").value = expense?.id || "";
     document.getElementById("expenseDescription").value = expense?.description || "";
     document.getElementById("expenseAmount").value = expense?.amount || "";
+    document.getElementById("expenseDate").value = expense?.expense_date || localToday();
     document.getElementById("expenseRecurring").checked = Boolean(expense?.recurring);
 }
 
@@ -488,6 +585,7 @@ async function saveExpense() {
     const payload = {
         description: document.getElementById("expenseDescription").value,
         amount: parseFloat(document.getElementById("expenseAmount").value) || 0,
+        expense_date: document.getElementById("expenseDate").value,
         category: selectedCategory,
         recurring: document.getElementById("expenseRecurring").checked,
     };
@@ -506,7 +604,7 @@ async function refreshCategory() {
     expenses.forEach((expense) => {
         total += expense.amount;
         const row = document.createElement("tr");
-        row.innerHTML = `<td>${expense.description}</td><td>${money.format(expense.amount)}</td><td>${expense.recurring ? "✓" : ""}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
+        row.innerHTML = `<td>${formatExpenseDate(expense.expense_date)}</td><td>${escapeHtml(expense.description)}</td><td>${money.format(expense.amount)}</td><td>${expense.recurring ? "✓" : ""}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
         row.querySelector(".btn-outline-primary").addEventListener("click", () => toggleExpenseForm(expense));
         row.querySelector(".btn-outline-danger").addEventListener("click", () => deleteExpense(expense.id));
         table.appendChild(row);

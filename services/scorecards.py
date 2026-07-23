@@ -1,6 +1,6 @@
 from config import CATEGORY_CONFIG
 from database import get_connection
-from services.expenses import normalize_category
+from services.expenses import normalize_category, normalize_expense_date
 from services.finance import dashboard_summary
 
 
@@ -8,7 +8,7 @@ def _scorecard_expenses(scorecard_id):
     conn = get_connection()
     rows = conn.execute(
         """
-        SELECT id, description, amount, category, recurring
+        SELECT id, description, amount, category, recurring, expense_date
         FROM scorecard_expenses
         WHERE scorecard_id = ?
         ORDER BY category, description
@@ -140,8 +140,8 @@ def create_scorecard(month_id, name, start_date, end_date):
 
     cursor.executemany(
         """
-        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -150,6 +150,7 @@ def create_scorecard(month_id, name, start_date, end_date):
                 float(expense["amount"]),
                 expense["category"],
                 1 if expense["recurring"] else 0,
+                expense["expense_date"],
             )
             for expense in expenses
         ],
@@ -180,7 +181,7 @@ def delete_scorecard(scorecard_id):
     return True
 
 
-def add_scorecard_expense(scorecard_id, description, amount, category, recurring):
+def add_scorecard_expense(scorecard_id, description, amount, category, recurring, expense_date=None):
     description, amount, category = _validate_expense(description, amount, category)
     conn = get_connection()
     if not _scorecard_exists(conn, scorecard_id):
@@ -188,10 +189,10 @@ def add_scorecard_expense(scorecard_id, description, amount, category, recurring
         return None
     conn.execute(
         """
-        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (scorecard_id, description, amount, category, 1 if recurring else 0),
+        (scorecard_id, description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date)),
     )
     _refresh_scorecard_total(conn, scorecard_id)
     conn.commit()
@@ -199,16 +200,16 @@ def add_scorecard_expense(scorecard_id, description, amount, category, recurring
     return get_scorecard(scorecard_id)
 
 
-def update_scorecard_expense(scorecard_id, expense_id, description, amount, category, recurring):
+def update_scorecard_expense(scorecard_id, expense_id, description, amount, category, recurring, expense_date=None):
     description, amount, category = _validate_expense(description, amount, category)
     conn = get_connection()
     cursor = conn.execute(
         """
         UPDATE scorecard_expenses
-        SET description = ?, amount = ?, category = ?, recurring = ?
+        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date)
         WHERE id = ? AND scorecard_id = ?
         """,
-        (description, amount, category, 1 if recurring else 0, expense_id, scorecard_id),
+        (description, amount, category, 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, expense_id, scorecard_id),
     )
     if cursor.rowcount == 0:
         conn.close()
