@@ -2,6 +2,14 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 let selectedCategory = "";
 let categoryChart;
 let dashboardState = { categories: [], expenses: [], summary: {} };
+let incomeEditorLoaded = false;
+
+function navigateTo(page) {
+    document.querySelectorAll(".app-page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
+    document.querySelectorAll(".app-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (page === "income" || page === "settings") initializeIncomeEditor();
+}
 
 async function api(path, options = {}) {
     const response = await fetch(path, {
@@ -62,7 +70,7 @@ function renderChart(categories) {
     categoryChart = new Chart(ctx, {
         type: "doughnut",
         data: { labels, datasets: [{ data, backgroundColor: colors }] },
-        options: { plugins: { legend: { position: "bottom" } }, cutout: "60%" },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 9, usePointStyle: true, font: { size: 10 } } } }, cutout: "65%" },
     });
 }
 
@@ -85,7 +93,9 @@ function selectedIncomeMode() {
     return document.querySelector('input[name="incomeMode"]:checked').value;
 }
 
-async function openIncomeModal() {
+async function initializeIncomeEditor() {
+    if (incomeEditorLoaded) return;
+    incomeEditorLoaded = true;
     document.querySelectorAll('input[name="incomeMode"]').forEach((input) => input.addEventListener("change", syncIncomeMode));
     ["takeHomeIncome", "manualTaxRate", "grossAnnualIncome", "incomePeriodDuration", "incomePeriodUnit"].forEach((id) => document.getElementById(id).addEventListener("input", updateIncomePreview));
     const profile = await api("/api/income");
@@ -99,8 +109,9 @@ async function openIncomeModal() {
     renderIncomeTaxSelectors(profile.tax_country || "Canada", profile.tax_region_code || "ON", profile.tax_year || 2026);
     renderTaxRulesetSelectors();
     syncIncomeMode();
-    new bootstrap.Modal(document.getElementById("incomeModal")).show();
 }
+
+function openIncomeModal() { navigateTo("income"); }
 
 function renderIncomeTaxSelectors(preferredCountry, preferredRegion, preferredYear) {
     const countrySelect = document.getElementById("taxCountry");
@@ -209,8 +220,8 @@ async function saveIncomeProfile() {
     };
     try {
         await api("/api/income", { method: "POST", body: JSON.stringify(payload) });
-        bootstrap.Modal.getInstance(document.getElementById("incomeModal")).hide();
         await loadDashboard();
+        navigateTo("budget");
     } catch (err) {
         document.getElementById("incomeError").textContent = err.message;
         document.getElementById("incomeError").classList.remove("d-none");
@@ -649,9 +660,9 @@ function exportDatabase() {
 }
 
 function openImportDatabaseModal() {
+    navigateTo("import");
     document.getElementById("databaseImportFile").value = "";
     document.getElementById("databaseImportError").classList.add("d-none");
-    new bootstrap.Modal(document.getElementById("importDatabaseModal")).show();
 }
 
 async function importDatabase() {
@@ -678,6 +689,6 @@ async function importDatabase() {
         return;
     }
 
-    bootstrap.Modal.getInstance(document.getElementById("importDatabaseModal")).hide();
     await loadDashboard();
+    navigateTo("budget");
 }
