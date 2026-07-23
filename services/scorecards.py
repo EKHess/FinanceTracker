@@ -90,7 +90,8 @@ def list_scorecards():
     conn = get_connection()
     rows = conn.execute(
         """
-        SELECT id, name, start_date, end_date, total_spending, created_at
+        SELECT id, name, start_date, end_date, total_spending, income,
+               income_period_duration, income_period_unit, created_at
         FROM scorecards
         ORDER BY created_at DESC, id DESC
         """
@@ -103,7 +104,8 @@ def get_scorecard(scorecard_id):
     conn = get_connection()
     row = conn.execute(
         """
-        SELECT id, name, start_date, end_date, total_spending, created_at
+        SELECT id, name, start_date, end_date, total_spending, income,
+               income_period_duration, income_period_unit, created_at
         FROM scorecards
         WHERE id = ?
         """,
@@ -131,10 +133,11 @@ def create_scorecard(month_id, name, start_date, end_date):
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO scorecards (name, start_date, end_date, total_spending)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (name, start_date, end_date, snapshot["summary"]["spending"]),
+        (name, start_date, end_date, snapshot["summary"]["spending"], snapshot["summary"]["income"],
+         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"]),
     )
     scorecard_id = cursor.lastrowid
 

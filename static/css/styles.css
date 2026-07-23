@@ -141,3 +141,12 @@ body { font-size: 16px; }
 .existing-expenses-header h5 { font-size: 18px; }
 .expense-manager-head { font-size: 12px; }
 .expense-manager-row, .show-more-expenses, .recurrence-fields, .quick-recurrence-row, .recurrence-label { font-size: 13px; }
+.workspace-control { min-width: 190px; height: 39px; display: grid; grid-template-columns: 38px minmax(110px,1fr) 38px; align-items: stretch; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: white; }
+.workspace-control button { border: 0; background: transparent; color: #536579; }
+.workspace-control button:first-child { border-right: 1px solid var(--line); }
+.workspace-control button:last-child { border-left: 1px solid var(--line); }
+.workspace-control button:hover:not(:disabled) { color: var(--green); background: #f1faf6; }
+.workspace-control button:disabled { color: #bdc7d0; cursor: not-allowed; }
+.workspace-control strong { display: grid; place-items: center; padding: 0 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.category-row:disabled { opacity: .72; cursor: default; }
+@media (max-width: 700px) { .workspace-control { width: 100%; }.header-actions { width: 100%; }.header-actions .btn { width: 100%; } }

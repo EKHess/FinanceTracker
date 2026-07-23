@@ -2,6 +2,9 @@ const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD
 let selectedCategory = "";
 let categoryChart;
 let dashboardState = { categories: [], expenses: [], summary: {} };
+let currentWorkspaceState = null;
+let workspaceTimeline = [];
+let workspaceIndex = 0;
 let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
 
@@ -24,9 +27,73 @@ async function api(path, options = {}) {
 
 async function loadDashboard() {
     dashboardState = await api("/api/dashboard");
+    currentWorkspaceState = dashboardState;
     renderSummary(dashboardState.summary);
     renderCategories(dashboardState.categories);
     renderChart(dashboardState.categories);
+}
+
+function scorecardDashboard(scorecard) {
+    const income = Number(scorecard.income) || 0;
+    const spending = Number(scorecard.total_spending) || 0;
+    const category = (id) => scorecard.categories.find((item) => item.id === id)?.total || 0;
+    const rate = (amount) => income > 0 ? (Number(amount) / income) * 100 : 0;
+    return {
+        month: { income_period_duration: scorecard.income_period_duration || 1, income_period_unit: scorecard.income_period_unit || "month" },
+        summary: {
+            income, spending, surplus: income - spending,
+            recurring_total: scorecard.expenses.filter((expense) => expense.recurring).reduce((sum, expense) => sum + Number(expense.amount), 0),
+            savings_rate: rate(category("savings")), investment_rate: rate(category("investments")),
+        },
+        categories: scorecard.categories,
+        expenses: scorecard.expenses,
+    };
+}
+
+async function initializeWorkspaceNavigation(forceCurrent = false) {
+    const scorecards = await api("/api/scorecards");
+    workspaceTimeline = [...scorecards].reverse().map((scorecard) => ({ id: scorecard.id, label: scorecard.name }));
+    workspaceTimeline.push({ id: null, label: "Current" });
+    if (forceCurrent || workspaceIndex >= workspaceTimeline.length) workspaceIndex = workspaceTimeline.length - 1;
+    await displayWorkspace(workspaceIndex);
+}
+
+async function navigateWorkspace(direction) {
+    const nextIndex = Math.min(Math.max(workspaceIndex + direction, 0), workspaceTimeline.length - 1);
+    if (nextIndex === workspaceIndex) return;
+    await displayWorkspace(nextIndex);
+}
+
+async function displayWorkspace(index) {
+    workspaceIndex = index;
+    const selection = workspaceTimeline[index];
+    const historical = selection.id !== null;
+    if (historical) {
+        const scorecard = await api(`/api/scorecards/${selection.id}`);
+        dashboardState = scorecardDashboard(scorecard);
+        renderSummary(dashboardState.summary);
+        renderCategories(dashboardState.categories);
+        renderChart(dashboardState.categories);
+        document.getElementById("budgetViewCaption").textContent = `${scorecard.start_date} – ${scorecard.end_date} saved scorecard.`;
+    } else {
+        dashboardState = currentWorkspaceState || await api("/api/dashboard");
+        currentWorkspaceState = dashboardState;
+        renderSummary(dashboardState.summary);
+        renderCategories(dashboardState.categories);
+        renderChart(dashboardState.categories);
+        document.getElementById("budgetViewCaption").textContent = "Your active, unsaved workspace.";
+    }
+    document.getElementById("workspaceLabel").textContent = selection.label;
+    document.getElementById("previousWorkspace").disabled = index === 0;
+    document.getElementById("nextWorkspace").disabled = index === workspaceTimeline.length - 1;
+    document.getElementById("addExpenseButton").disabled = historical;
+    document.getElementById("saveWorkspaceButton").disabled = historical;
+    document.querySelectorAll("#categoryCards .category-row").forEach((button) => button.disabled = historical);
+}
+
+async function initializeDashboard() {
+    await loadDashboard();
+    await initializeWorkspaceNavigation(true);
 }
 
 function renderSummary(summary) {
@@ -645,7 +712,7 @@ async function deleteExpense(id) {
     await refreshCategory();
 }
 
-loadDashboard();
+initializeDashboard();
 
 function openSaveScorecardModal() {
     const today = new Date();
@@ -657,12 +724,6 @@ function openSaveScorecardModal() {
     document.getElementById("scorecardEndDate").value = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
     document.getElementById("scorecardSaveError").classList.add("d-none");
     new bootstrap.Modal(document.getElementById("saveScorecardModal")).show();
-}
-
-function openSaveScorecardFromReports() {
-    const reportsElement = document.getElementById("scorecardsModal");
-    reportsElement.addEventListener("hidden.bs.modal", openSaveScorecardModal, { once: true });
-    bootstrap.Modal.getInstance(reportsElement).hide();
 }
 
 async function saveScorecard() {
@@ -678,6 +739,7 @@ async function saveScorecard() {
         await api("/api/scorecards", { method: "POST", body: JSON.stringify(payload) });
         bootstrap.Modal.getInstance(document.getElementById("saveScorecardModal")).hide();
         await loadDashboard();
+        await initializeWorkspaceNavigation(true);
     } catch (err) {
         error.textContent = err.message;
         error.classList.remove("d-none");
@@ -769,6 +831,8 @@ async function deleteActiveScorecard() {
     document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
     document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
     await refreshScorecardList();
+    await loadDashboard();
+    await initializeWorkspaceNavigation(true);
 }
 
 async function refreshScorecardList() {
