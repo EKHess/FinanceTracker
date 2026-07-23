@@ -145,6 +145,7 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     assert scorecard["income"] == 2000
     assert scorecard["income_period_duration"] == 1
     assert scorecard["income_period_unit"] == "month"
+    assert scorecard["income_snapshot_present"] == 1
     assert {expense["description"] for expense in scorecard["expenses"]} == {"Rent", "Concert"}
 
     dashboard = client.get("/api/dashboard").get_json()

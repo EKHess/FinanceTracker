@@ -34,12 +34,17 @@ async function loadDashboard() {
 }
 
 function scorecardDashboard(scorecard) {
-    const income = Number(scorecard.income) || 0;
+    const hasIncomeSnapshot = Boolean(scorecard.income_snapshot_present);
+    const currentMonth = currentWorkspaceState?.month || {};
+    const income = hasIncomeSnapshot ? Number(scorecard.income) || 0 : Number(currentWorkspaceState?.summary?.income) || 0;
     const spending = Number(scorecard.total_spending) || 0;
     const category = (id) => scorecard.categories.find((item) => item.id === id)?.total || 0;
     const rate = (amount) => income > 0 ? (Number(amount) / income) * 100 : 0;
     return {
-        month: { income_period_duration: scorecard.income_period_duration || 1, income_period_unit: scorecard.income_period_unit || "month" },
+        month: {
+            income_period_duration: hasIncomeSnapshot ? scorecard.income_period_duration || 1 : currentMonth.income_period_duration || 1,
+            income_period_unit: hasIncomeSnapshot ? scorecard.income_period_unit || "month" : currentMonth.income_period_unit || "month",
+        },
         summary: {
             income, spending, surplus: income - spending,
             recurring_total: scorecard.expenses.filter((expense) => expense.recurring).reduce((sum, expense) => sum + Number(expense.amount), 0),

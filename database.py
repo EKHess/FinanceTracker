@@ -83,6 +83,7 @@ def initialize_database():
         income REAL NOT NULL DEFAULT 0,
         income_period_duration REAL NOT NULL DEFAULT 1,
         income_period_unit TEXT NOT NULL DEFAULT 'month',
+        income_snapshot_present INTEGER NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -148,6 +149,7 @@ def initialize_database():
     _ensure_column(cursor, "scorecards", "income", "REAL NOT NULL DEFAULT 0")
     _ensure_column(cursor, "scorecards", "income_period_duration", "REAL NOT NULL DEFAULT 1")
     _ensure_column(cursor, "scorecards", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "scorecards", "income_snapshot_present", "INTEGER NOT NULL DEFAULT 0")
     cursor.execute(
         "UPDATE expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
         (date.today().isoformat(),),

@@ -91,7 +91,7 @@ def list_scorecards():
     rows = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, created_at
         FROM scorecards
         ORDER BY created_at DESC, id DESC
         """
@@ -105,7 +105,7 @@ def get_scorecard(scorecard_id):
     row = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, created_at
         FROM scorecards
         WHERE id = ?
         """,
@@ -133,8 +133,8 @@ def create_scorecard(month_id, name, start_date, end_date):
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         """,
         (name, start_date, end_date, snapshot["summary"]["spending"], snapshot["summary"]["income"],
          snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"]),
