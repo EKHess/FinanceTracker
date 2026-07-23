@@ -44,14 +44,37 @@ function renderSummary(summary) {
     surplus.textContent = money.format(summary.surplus);
     surplus.classList.toggle("text-success", summary.surplus >= 0);
     surplus.classList.toggle("text-danger", summary.surplus < 0);
+    const income = Number(summary.income) || 0;
+    const spending = Number(summary.spending) || 0;
+    const usedPercent = income > 0 ? (spending / income) * 100 : 0;
+    const surplusPercent = income > 0 ? (summary.surplus / income) * 100 : 0;
+    document.getElementById("surplusCaption").textContent = `${surplusPercent.toFixed(1)}% of income`;
+    document.getElementById("incomeUsedPercent").textContent = `${usedPercent.toFixed(1)}%`;
+    document.getElementById("incomeUsedCaption").textContent = income > 0 ? "of income spent" : "add income to begin";
+    const usageBar = document.getElementById("incomeUsedBar");
+    usageBar.style.width = `${Math.min(Math.max(usedPercent, 0), 100)}%`;
+    usageBar.classList.toggle("over-budget", usedPercent > 100);
 }
 
 function renderCategories(categories) {
+    const income = Number(dashboardState.summary.income) || 0;
     categories.forEach((category) => {
+        const percentage = income > 0 ? (Number(category.total) / income) * 100 : 0;
         document.getElementById(`${category.id}-total`).textContent = money.format(category.total);
         document.getElementById(`${category.id}-count`).textContent = category.count;
         document.getElementById(`${category.id}-caption`).textContent = `${category.count} expense${category.count === 1 ? "" : "s"}`;
+        document.getElementById(`${category.id}-percent`).textContent = `${percentage.toFixed(1)}%`;
+        document.getElementById(`picker-${category.id}-total`).textContent = money.format(category.total);
+        document.getElementById(`picker-${category.id}-percent`).textContent = `${percentage.toFixed(1)}%`;
     });
+    renderCategoryLegend(categories, income);
+}
+
+function renderCategoryLegend(categories, income) {
+    document.getElementById("categoryLegend").innerHTML = categories.map((category) => {
+        const percentage = income > 0 ? (Number(category.total) / income) * 100 : 0;
+        return `<div><span class="legend-dot" style="background:${category.color}"></span><span>${escapeHtml(category.label)}</span><strong>${money.format(category.total)} <small>(${percentage.toFixed(1)}%)</small></strong></div>`;
+    }).join("");
 }
 
 function renderChart(categories) {
@@ -67,10 +90,29 @@ function renderChart(categories) {
         return;
     }
 
+    const centerLabel = {
+        id: "centerLabel",
+        afterDraw(chart) {
+            const { ctx: context, chartArea } = chart;
+            if (!chartArea) return;
+            const total = chart.data.datasets[0].data.reduce((sum, value) => sum + Number(value || 0), 0);
+            context.save();
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.fillStyle = "#10223b";
+            context.font = "700 17px Inter, sans-serif";
+            context.fillText(money.format(total), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 - 6);
+            context.fillStyle = "#718096";
+            context.font = "10px Inter, sans-serif";
+            context.fillText("Total Expenses", (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + 14);
+            context.restore();
+        },
+    };
     categoryChart = new Chart(ctx, {
         type: "doughnut",
         data: { labels, datasets: [{ data, backgroundColor: colors }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 9, usePointStyle: true, font: { size: 10 } } } }, cutout: "65%" },
+        plugins: [centerLabel],
+        options: { responsive: true, maintainAspectRatio: true, aspectRatio: 1, plugins: { legend: { display: false } }, cutout: "62%" },
     });
 }
 
@@ -422,6 +464,17 @@ async function showCategory(categoryId) {
     new bootstrap.Modal(document.getElementById("categoryModal")).show();
 }
 
+function openAddExpenseModal() {
+    new bootstrap.Modal(document.getElementById("addExpenseModal")).show();
+}
+
+function selectExpenseCategory(categoryId) {
+    const picker = bootstrap.Modal.getInstance(document.getElementById("addExpenseModal"));
+    const pickerElement = document.getElementById("addExpenseModal");
+    pickerElement.addEventListener("hidden.bs.modal", () => showCategory(categoryId), { once: true });
+    picker.hide();
+}
+
 function toggleExpenseForm(expense = null) {
     document.getElementById("expenseForm").style.display = "block";
     document.getElementById("expenseId").value = expense?.id || "";
@@ -481,6 +534,12 @@ function openSaveScorecardModal() {
     document.getElementById("scorecardEndDate").value = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
     document.getElementById("scorecardSaveError").classList.add("d-none");
     new bootstrap.Modal(document.getElementById("saveScorecardModal")).show();
+}
+
+function openSaveScorecardFromReports() {
+    const reportsElement = document.getElementById("scorecardsModal");
+    reportsElement.addEventListener("hidden.bs.modal", openSaveScorecardModal, { once: true });
+    bootstrap.Modal.getInstance(reportsElement).hide();
 }
 
 async function saveScorecard() {

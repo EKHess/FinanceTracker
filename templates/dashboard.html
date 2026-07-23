@@ -36,15 +36,16 @@
 </aside>
 <main class="main-content">
 <section class="app-page active" id="page-budget">
-    <header class="page-header"><div><h1>Monthly Budget</h1><p>Track all of your wants and their value over time.</p></div><div class="header-actions"><button class="month-control"><i class="bi bi-chevron-left"></i><strong>{{ month_name }} {{ month["year"] }}</strong><i class="bi bi-chevron-right"></i></button><button class="btn btn-success" onclick="openSaveScorecardModal()"><i class="bi bi-bookmark-check me-1"></i>Save Scorecard</button></div></header>
+    <header class="page-header"><div><h1>Monthly Budget</h1><p>Track all of your wants and their value over time.</p></div><div class="header-actions"><button class="month-control"><i class="bi bi-chevron-left"></i><strong>{{ month_name }} {{ month["year"] }}</strong><i class="bi bi-chevron-right"></i></button><button class="btn btn-success" onclick="openAddExpenseModal()"><i class="bi bi-plus-lg me-1"></i>Add Expense</button></div></header>
     <div class="row g-3 mb-4 summary-row">
-        <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span class="metric-icon green"><i class="bi bi-wallet2"></i></span><div><small>Income</small><h2 id="income">$0.00</h2><span id="incomePeriod">every 1 month</span></div></div></div></div>
-        <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span class="metric-icon red"><i class="bi bi-receipt"></i></span><div><small>Expenses</small><h2 id="spending">$0.00</h2></div></div></div></div>
-        <div class="col-md-4"><div class="card metric-card"><div class="card-body"><span class="metric-icon teal"><i class="bi bi-graph-up-arrow"></i></span><div><small>Surplus</small><h2 id="surplus">$0.00</h2></div></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="card metric-card"><div class="card-body"><span class="metric-icon green"><i class="bi bi-wallet2"></i></span><div><small>Income</small><h2 id="income">$0.00</h2><span id="incomePeriod">every 1 month</span></div></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="card metric-card"><div class="card-body"><span class="metric-icon red"><i class="bi bi-receipt"></i></span><div><small>Expenses</small><h2 id="spending">$0.00</h2></div></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="card metric-card"><div class="card-body"><span class="metric-icon teal"><i class="bi bi-graph-up-arrow"></i></span><div><small>Surplus</small><h2 id="surplus">$0.00</h2><span id="surplusCaption">0.0% of income</span></div></div></div></div>
+        <div class="col-sm-6 col-xl-3"><div class="card metric-card budget-usage-card"><div class="card-body"><span class="metric-icon amber"><i class="bi bi-pie-chart"></i></span><div class="flex-grow-1"><small>Period Income Used</small><h2 id="incomeUsedPercent">0%</h2><span id="incomeUsedCaption">of income spent</span><div class="usage-track"><span id="incomeUsedBar"></span></div></div></div></div></div>
     </div>
     <div class="row g-3">
-      <div class="col-xl-7"><div class="panel h-100"><div class="panel-heading"><h2>Expenses by Category</h2><span>Click a category to manage expenses</span></div><div class="row g-3" id="categoryCards">{% for category_id, category in categories.items() %}<div class="col-md-6"><button class="category-card w-100" data-category-id="{{ category_id }}" onclick="showCategory('{{ category_id }}')"><span class="category-icon" style="color: {{ category.color }}; background: {{ category.color }}18"><i class="bi bi-{{ category.icon }}"></i></span><div><h3>{{ category.label }}</h3><small id="{{ category_id }}-caption">0 expenses</small></div><div class="category-value"><strong id="{{ category_id }}-total">$0.00</strong><span class="badge" style="background:{{ category.color }}" id="{{ category_id }}-count">0</span></div></button></div>{% endfor %}</div></div></div>
-      <div class="col-xl-5"><div class="panel h-100"><div class="panel-heading"><h2>Spending Overview</h2><span>Your monthly allocation</span></div><canvas id="categoryChart" height="225"></canvas><div class="rate-grid"><div><small>Recurring commitments</small><strong id="recurringTotal">$0.00</strong></div><div><small>Savings rate</small><strong id="savingsRate">0.0%</strong></div><div><small>Investment rate</small><strong id="investmentRate">0.0%</strong></div></div></div></div>
+      <div class="col-xl-5"><div class="panel h-100 category-panel"><div class="panel-heading"><h2>Expenses by Category</h2></div><div id="categoryCards">{% for category_id, category in categories.items() %}<button class="category-row" data-category-id="{{ category_id }}" onclick="showCategory('{{ category_id }}')"><span class="category-icon" style="color: {{ category.color }}; background: {{ category.color }}18"><i class="bi bi-{{ category.icon }}"></i></span><strong>{{ category.label }}</strong><span class="category-amount" id="{{ category_id }}-total">$0.00</span><span class="category-percent" id="{{ category_id }}-percent">0.0%</span><span class="visually-hidden" id="{{ category_id }}-count">0</span><span class="visually-hidden" id="{{ category_id }}-caption">0 expenses</span></button>{% endfor %}</div><button class="manage-link" onclick="navigateTo('categories')">Manage Categories <i class="bi bi-arrow-right"></i></button></div></div>
+      <div class="col-xl-7"><div class="panel h-100"><div class="panel-heading"><h2>Spending Overview</h2></div><div class="spending-layout"><div class="chart-square"><canvas id="categoryChart"></canvas></div><div id="categoryLegend" class="chart-legend"></div></div><div class="rate-grid"><div><small>Recurring commitments</small><strong id="recurringTotal">$0.00</strong></div><div><small>Savings rate</small><strong id="savingsRate">0.0%</strong></div><div><small>Investment rate</small><strong id="investmentRate">0.0%</strong></div></div></div></div>
     </div>
 </section>
 <section class="app-page" id="page-income">
@@ -83,6 +84,17 @@
                 </div></section>
 {% for page,title,icon in [('cashflow','Cash Flow Dashboard','pie-chart'),('progress','Progress Dashboard','graph-up-arrow'),('assets','Assets','wallet2'),('liabilities','Liabilities','circle'),('recurring','Recurring Items','arrow-repeat'),('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
 </main></div>
+<div class="modal fade" id="addExpenseModal" tabindex="-1" aria-labelledby="addExpenseTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><div><h5 class="modal-title" id="addExpenseTitle">Expenses by Category</h5><p class="modal-subtitle">Choose a category to add or manage its expenses. Percentages show the share of period income spent.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body"><div id="expenseCategoryPicker" class="expense-category-picker">
+                {% for category_id, category in categories.items() %}<button class="category-row" onclick="selectExpenseCategory('{{ category_id }}')"><span class="category-icon" style="color: {{ category.color }}; background: {{ category.color }}18"><i class="bi bi-{{ category.icon }}"></i></span><strong>{{ category.label }}</strong><span class="category-amount" id="picker-{{ category_id }}-total">$0.00</span><span class="category-percent" id="picker-{{ category_id }}-percent">0.0%</span><i class="bi bi-chevron-right"></i></button>{% endfor %}
+            </div></div>
+            <div class="modal-footer justify-content-start"><button class="manage-link" onclick="bootstrap.Modal.getInstance(document.getElementById('addExpenseModal')).hide(); navigateTo('categories')">Manage Categories <i class="bi bi-arrow-right"></i></button></div>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="categoryModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -151,6 +163,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Saved Scorecards</h5>
+                <button class="btn btn-sm btn-success ms-auto me-3" onclick="openSaveScorecardFromReports()"><i class="bi bi-bookmark-check me-1"></i>Save Current Scorecard</button>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
