@@ -5,26 +5,14 @@ from database import get_connection
 
 
 def get_global_balance(month_id):
-    """Return accumulated saved scorecard results plus the active workspace result.
-
-    Deficit pledges are earmarked Savings transfers rather than consumption. They
-    therefore improve the carried balance while staying visible in period expenses.
-    Surplus draws are regular expenses and reduce the global balance exactly once.
-    """
+    """Return the sum of every saved and active workspace surplus or deficit."""
     conn = get_connection()
     historical = conn.execute(
-        """SELECT COALESCE(SUM(s.income - COALESCE(x.spending, 0)), 0)
-           FROM scorecards s
-           LEFT JOIN (
-               SELECT scorecard_id, SUM(amount) AS spending
-               FROM scorecard_expenses
-               WHERE COALESCE(global_type, '') != 'pledge'
-               GROUP BY scorecard_id
-           ) x ON x.scorecard_id = s.id"""
+        "SELECT COALESCE(SUM(income - total_spending), 0) FROM scorecards"
     ).fetchone()[0]
     month = conn.execute("SELECT income FROM months WHERE id = ?", (month_id,)).fetchone()
-    ordinary_spending = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ? AND COALESCE(global_type, '') != 'pledge'",
+    current_spending = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ?",
         (month_id,),
     ).fetchone()[0]
     pledge = conn.execute(
@@ -38,12 +26,13 @@ def get_global_balance(month_id):
     conn.close()
     income = float(month["income"]) if month else 0.0
     pledge_amount = float(pledge["amount"]) if pledge else 0.0
-    balance = float(historical) + income - float(ordinary_spending) + pledge_amount
+    current_contribution = income - float(current_spending)
+    balance = float(historical) + current_contribution
     return {
         "balance": round(balance, 2),
         "status": "surplus" if balance >= 0 else "deficit",
         "historical_balance": round(float(historical), 2),
-        "current_contribution": round(income - float(ordinary_spending), 2),
+        "current_contribution": round(current_contribution, 2),
         "pledge": round(pledge_amount, 2),
         "pledge_expense_id": pledge["id"] if pledge else None,
         "drawn_this_period": round(float(draws), 2),
@@ -62,7 +51,7 @@ def save_deficit_pledge(month_id, amount):
         (month_id,),
     ).fetchone()[0]
     available = max(float(month["income"]) - float(non_pledge), 0)
-    balance_before_pledge = state["balance"] - state["pledge"]
+    balance_before_pledge = state["balance"] + state["pledge"]
     if balance_before_pledge >= 0:
         conn.close()
         raise ValueError("A pledge can only be made while the global balance is in deficit")

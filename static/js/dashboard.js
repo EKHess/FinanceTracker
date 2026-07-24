@@ -38,7 +38,7 @@ async function loadDashboard() {
 
 function renderGlobalBalance(state) {
     if (!state) return;
-    const deficit = state.balance < 0 || state.pledge > 0;
+    const deficit = state.balance < 0;
     const amount = document.getElementById("globalBalanceAmount");
     amount.textContent = money.format(Math.abs(state.balance));
     amount.classList.toggle("text-danger", deficit);
