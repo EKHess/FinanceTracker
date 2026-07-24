@@ -2,6 +2,7 @@ from datetime import date
 
 from config import CATEGORY_CONFIG
 from database import get_connection
+from services.expenses import get_workspace_expenses
 
 
 def get_global_balance(month_id):
@@ -11,10 +12,7 @@ def get_global_balance(month_id):
         "SELECT COALESCE(SUM(income - total_spending), 0) FROM scorecards"
     ).fetchone()[0]
     month = conn.execute("SELECT income FROM months WHERE id = ?", (month_id,)).fetchone()
-    current_spending = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ?",
-        (month_id,),
-    ).fetchone()[0]
+    current_spending = sum(float(expense["amount"]) for expense in get_workspace_expenses(month_id))
     pledge = conn.execute(
         "SELECT id, amount FROM expenses WHERE month_id = ? AND global_type = 'pledge' LIMIT 1",
         (month_id,),
@@ -46,10 +44,11 @@ def save_deficit_pledge(month_id, amount):
         raise ValueError("Pledge must be greater than zero")
     conn = get_connection()
     month = conn.execute("SELECT income FROM months WHERE id = ?", (month_id,)).fetchone()
-    non_pledge = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ? AND COALESCE(global_type, '') != 'pledge'",
-        (month_id,),
-    ).fetchone()[0]
+    non_pledge = sum(
+        float(expense["amount"])
+        for expense in get_workspace_expenses(month_id)
+        if expense.get("global_type") != "pledge"
+    )
     available = max(float(month["income"]) - float(non_pledge), 0)
     balance_before_pledge = state["balance"] + state["pledge"]
     if balance_before_pledge >= 0:

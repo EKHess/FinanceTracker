@@ -38,6 +38,23 @@ function openWorkspaceSettings() {
     document.getElementById("workspaceScheduleForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+
+function formatWorkspacePeriodDate(value) {
+    if (!value) return "";
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString([], { dateStyle: "medium" });
+}
+
+function workspacePeriodCaption(period) {
+    if (!period?.start || !period?.end) return "Current workspace period: unavailable";
+    return `Current workspace period: ${formatWorkspacePeriodDate(period.start)} – ${formatWorkspacePeriodDate(period.end)}`;
+}
+
+function setWorkspacePeriodCaption(text) {
+    const caption = document.getElementById("workspacePeriodCaption");
+    if (caption) caption.textContent = text;
+}
+
 function renderWorkspaceSchedule(schedule) {
     workspaceSchedule = schedule;
     const nextRun = new Date(schedule.next_run);
@@ -75,6 +92,8 @@ async function saveWorkspaceSchedule(event) {
             time_of_day: `${document.getElementById("workspaceTimeHours").value}:${document.getElementById("workspaceTimeMinutes").value}`,
         }) });
         renderWorkspaceSchedule(schedule);
+        await loadDashboard();
+        await initializeWorkspaceNavigation(true);
         status.textContent = "Saved.";
         status.className = "small ms-2 text-success";
     } catch (error) {
@@ -199,6 +218,7 @@ async function displayWorkspace(index) {
         renderCategories(dashboardState.categories);
         renderChart(dashboardState.categories);
         document.getElementById("budgetViewCaption").textContent = `${scorecard.start_date} – ${scorecard.end_date} saved scorecard.`;
+        setWorkspacePeriodCaption(`Saved report period: ${formatWorkspacePeriodDate(scorecard.start_date)} – ${formatWorkspacePeriodDate(scorecard.end_date)}`);
     } else {
         dashboardState = currentWorkspaceState || await api("/api/dashboard");
         currentWorkspaceState = dashboardState;
@@ -206,6 +226,7 @@ async function displayWorkspace(index) {
         renderCategories(dashboardState.categories);
         renderChart(dashboardState.categories);
         document.getElementById("budgetViewCaption").textContent = "Your active, unsaved workspace.";
+        setWorkspacePeriodCaption(workspacePeriodCaption(dashboardState.workspace_period));
     }
     document.getElementById("workspaceLabel").textContent = selection.label;
     document.getElementById("previousWorkspace").disabled = index === 0;
@@ -753,7 +774,7 @@ function handleRecurringExpenseSearch() {
 function sortedRecurringExpenses() {
     const prefix = document.getElementById("recurringExpenseSearch").value.trim().toLocaleLowerCase();
     const sort = document.getElementById("recurringExpenseSort").value;
-    const expenses = (currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring && expense.description.toLocaleLowerCase().startsWith(prefix));
+    const expenses = (currentWorkspaceState?.recurring_expenses || currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring && expense.description.toLocaleLowerCase().startsWith(prefix));
     const byDescription = (a, b) => a.description.localeCompare(b.description, undefined, { sensitivity: "base" });
     if (sort === "description") expenses.sort(byDescription);
     else if (sort === "category") expenses.sort((a, b) => (window.CATEGORY_CONFIG[a.category]?.label || a.category).localeCompare(window.CATEGORY_CONFIG[b.category]?.label || b.category) || byDescription(a, b));
@@ -806,7 +827,8 @@ function showMoreExpenses() {
 }
 
 function editManagedExpense(id) {
-    const expense = dashboardState.expenses.find((item) => item.id === id);
+    const expense = dashboardState.expenses.find((item) => item.id === id)
+        || currentWorkspaceState?.recurring_expenses?.find((item) => item.id === id);
     if (!expense) return;
     document.getElementById("quickExpenseId").value = expense.id;
     document.getElementById("quickExpenseDescription").value = expense.description;

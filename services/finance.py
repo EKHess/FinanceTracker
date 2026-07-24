@@ -1,6 +1,6 @@
 from config import CATEGORY_CONFIG
 from database import get_connection
-from services.expenses import get_expenses
+from services.expenses import get_expenses, get_workspace_expenses
 from services.global_balance import get_global_balance
 
 
@@ -19,50 +19,37 @@ def _empty_categories():
 
 
 def category_totals(month_id):
-    conn = get_connection()
-    rows = conn.execute(
-        """
-        SELECT category, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
-        FROM expenses
-        WHERE month_id = ?
-        GROUP BY category
-        """,
-        (month_id,),
-    ).fetchall()
-    conn.close()
-
     categories = _empty_categories()
-    for row in rows:
-        category_id = row["category"]
+    for expense in get_workspace_expenses(month_id):
+        category_id = expense["category"]
         if category_id in categories:
-            categories[category_id]["total"] = float(row["total"])
-            categories[category_id]["count"] = int(row["count"])
+            categories[category_id]["total"] += float(expense["amount"])
+            categories[category_id]["count"] += 1
 
     return categories
+
+
+def _workspace_period():
+    conn = get_connection()
+    schedule = conn.execute("SELECT period_start, next_run FROM workspace_schedule WHERE id = 1").fetchone()
+    conn.close()
+    if schedule is None:
+        return None
+    return {
+        "start": schedule["period_start"],
+        "end": schedule["next_run"].split("T", 1)[0],
+    }
 
 
 def dashboard_summary(month_id):
     conn = get_connection()
     month = conn.execute("SELECT * FROM months WHERE id = ?", (month_id,)).fetchone()
-    spending = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ?",
-        (month_id,),
-    ).fetchone()[0]
-    recurring = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE month_id = ? AND recurring = 1",
-        (month_id,),
-    ).fetchone()[0]
-    largest = conn.execute(
-        """
-        SELECT id, description, amount, category, recurring
-        FROM expenses
-        WHERE month_id = ?
-        ORDER BY amount DESC, description ASC
-        LIMIT 1
-        """,
-        (month_id,),
-    ).fetchone()
     conn.close()
+
+    expenses = get_workspace_expenses(month_id)
+    spending = sum(float(expense["amount"]) for expense in expenses)
+    recurring = sum(float(expense["amount"]) for expense in expenses if expense["recurring"])
+    largest = min(expenses, key=lambda expense: (-float(expense["amount"]), expense["description"]), default=None)
 
     income = float(month["income"])
     spending = float(spending)
@@ -71,17 +58,19 @@ def dashboard_summary(month_id):
 
     return {
         "month": dict(month),
+        "workspace_period": _workspace_period(),
         "summary": {
             "income": income,
             "spending": spending,
             "surplus": surplus,
             "recurring_total": float(recurring),
-            "largest_expense": dict(largest) if largest else None,
+            "largest_expense": largest,
             "savings_rate": _rate(categories["savings"]["total"], income),
             "investment_rate": _rate(categories["investments"]["total"], income),
         },
         "categories": list(categories.values()),
-        "expenses": get_expenses(month_id),
+        "expenses": expenses,
+        "recurring_expenses": [expense for expense in get_expenses(month_id) if expense["recurring"]],
         "global_balance": get_global_balance(month_id),
     }
 
