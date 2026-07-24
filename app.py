@@ -21,11 +21,16 @@ from services.scorecards import (
     list_scorecards,
     update_scorecard_expense,
 )
+from services.workspace_schedule import get_workspace_schedule, process_due_workspace, save_workspace_schedule
 
 
 app = Flask(__name__)
 
 initialize_database()
+
+@app.before_request
+def save_due_workspace():
+    process_due_workspace()
 
 
 def _current_month_context():
@@ -220,6 +225,17 @@ def api_create_scorecard():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(scorecard), 201
+
+@app.route("/api/workspace-schedule")
+def api_workspace_schedule():
+    return jsonify(get_workspace_schedule())
+
+@app.route("/api/workspace-schedule", methods=["PUT"])
+def api_save_workspace_schedule():
+    try:
+        return jsonify(save_workspace_schedule(request.get_json() or {}))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 @app.route("/api/scorecards/<int:id>", methods=["DELETE"])
 def api_delete_scorecard(id):

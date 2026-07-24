@@ -105,6 +105,20 @@ def initialize_database():
     """)
 
     cursor.execute("""
+    CREATE TABLE IF NOT EXISTS workspace_schedule (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        mode TEXT NOT NULL DEFAULT 'monthly',
+        monthly_day INTEGER NOT NULL DEFAULT 1,
+        interval_value INTEGER NOT NULL DEFAULT 1,
+        interval_unit TEXT NOT NULL DEFAULT 'month',
+        time_of_day TEXT NOT NULL DEFAULT '00:00',
+        period_start TEXT NOT NULL,
+        next_run TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS tax_rulesets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         country TEXT NOT NULL,
