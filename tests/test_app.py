@@ -70,6 +70,73 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
     assert client.get("/api/dashboard").get_json()["summary"]["spending"] == 0
 
 
+def test_global_deficit_pledge_is_editable_highlighted_savings(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 100})
+    client.post("/api/expenses", json={"description": "Emergency", "amount": 250, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Past term", "start_date": "2026-01-01", "end_date": "2026-01-31"})
+    assert client.get("/api/global-balance").get_json()["balance"] == -50
+
+    assert client.post("/api/global-balance/pledge", json={"amount": 30}).status_code == 200
+    updated = client.post("/api/global-balance/pledge", json={"amount": 50})
+    assert updated.status_code == 200
+    assert updated.get_json()["balance"] == -100
+    expenses = client.get("/api/expenses").get_json()
+    pledge = next(expense for expense in expenses if expense["global_type"] == "pledge")
+    assert pledge["category"] == "savings"
+    assert pledge["amount"] == 50
+
+
+def test_global_surplus_draw_is_capped_and_allocated_to_category(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    client.post("/api/income", json={"income": 500})
+
+    response = client.post("/api/global-balance/draw", json={"amount": 125, "category": "guilt_free", "description": "Weekend away"})
+    assert response.status_code == 200
+    assert response.get_json()["balance"] == 375
+    draw = client.get("/api/expenses").get_json()[0]
+    assert draw["global_type"] == "draw"
+    assert draw["category"] == "guilt_free"
+    assert client.post("/api/global-balance/draw", json={"amount": 376, "category": "fixed"}).status_code == 400
+
+
+def test_global_balance_is_exact_sum_of_saved_and_current_results(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    # Saved surplus: 1,000 - 600 = +400.
+    client.post("/api/income", json={"income": 1000})
+    client.post("/api/expenses", json={"description": "First term", "amount": 600, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved surplus", "start_date": "2026-01-01", "end_date": "2026-01-31"})
+
+    # Saved deficit: 1,000 - 1,250 = -250.
+    client.post("/api/expenses", json={"description": "Second term", "amount": 1250, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved deficit", "start_date": "2026-02-01", "end_date": "2026-02-28"})
+
+    # Current surplus: 1,000 - 900 = +100. Global: 400 - 250 + 100 = 250.
+    client.post("/api/expenses", json={"description": "Current term", "amount": 900, "category": "fixed"})
+    state = client.get("/api/global-balance").get_json()
+    assert state["historical_balance"] == 150
+    assert state["current_contribution"] == 100
+    assert state["balance"] == 250
+    assert client.get("/api/dashboard").get_json()["global_balance"] == state
+
+
 def test_expenses_store_default_and_explicit_dates(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
