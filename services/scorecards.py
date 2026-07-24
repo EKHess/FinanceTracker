@@ -8,7 +8,7 @@ def _scorecard_expenses(scorecard_id):
     conn = get_connection()
     rows = conn.execute(
         """
-        SELECT id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit
+        SELECT id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type
         FROM scorecard_expenses
         WHERE scorecard_id = ?
         ORDER BY category, description
@@ -143,8 +143,8 @@ def create_scorecard(month_id, name, start_date, end_date):
 
     cursor.executemany(
         """
-        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -156,6 +156,7 @@ def create_scorecard(month_id, name, start_date, end_date):
                 expense["expense_date"],
                 expense["recurrence_interval"],
                 expense["recurrence_unit"],
+                expense.get("global_type"),
             )
             for expense in expenses
         ],

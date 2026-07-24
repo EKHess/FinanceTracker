@@ -70,6 +70,47 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
     assert client.get("/api/dashboard").get_json()["summary"]["spending"] == 0
 
 
+def test_global_deficit_pledge_is_editable_highlighted_savings(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 100})
+    client.post("/api/expenses", json={"description": "Emergency", "amount": 250, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Past term", "start_date": "2026-01-01", "end_date": "2026-01-31"})
+    assert client.get("/api/global-balance").get_json()["balance"] == -50
+
+    assert client.post("/api/global-balance/pledge", json={"amount": 30}).status_code == 200
+    updated = client.post("/api/global-balance/pledge", json={"amount": 50})
+    assert updated.status_code == 200
+    assert updated.get_json()["balance"] == 0
+    expenses = client.get("/api/expenses").get_json()
+    pledge = next(expense for expense in expenses if expense["global_type"] == "pledge")
+    assert pledge["category"] == "savings"
+    assert pledge["amount"] == 50
+
+
+def test_global_surplus_draw_is_capped_and_allocated_to_category(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    client.post("/api/income", json={"income": 500})
+
+    response = client.post("/api/global-balance/draw", json={"amount": 125, "category": "guilt_free", "description": "Weekend away"})
+    assert response.status_code == 200
+    assert response.get_json()["balance"] == 375
+    draw = client.get("/api/expenses").get_json()[0]
+    assert draw["global_type"] == "draw"
+    assert draw["category"] == "guilt_free"
+    assert client.post("/api/global-balance/draw", json={"amount": 376, "category": "fixed"}).status_code == 400
+
+
 def test_expenses_store_default_and_explicit_dates(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

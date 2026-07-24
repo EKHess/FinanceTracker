@@ -9,6 +9,7 @@ import database
 from database import get_current_month, import_database_file, initialize_database
 from services.expenses import add_expense, delete_expense, get_expenses, update_expense
 from services.finance import dashboard_summary
+from services.global_balance import draw_from_surplus, get_global_balance, save_deficit_pledge
 from services.months import get_category_totals, get_month_summary, update_income
 from services.income import get_income_profile, get_tax_rulesets, save_income_profile
 from services.scorecards import (
@@ -47,6 +48,28 @@ def dashboard():
 def api_dashboard():
     month = get_current_month()
     return jsonify(dashboard_summary(month["id"]))
+
+
+@app.route("/api/global-balance")
+def api_global_balance():
+    return jsonify(get_global_balance(get_current_month()["id"]))
+
+
+@app.route("/api/global-balance/pledge", methods=["POST"])
+def api_global_pledge():
+    try:
+        return jsonify(save_deficit_pledge(get_current_month()["id"], (request.get_json() or {}).get("amount", 0)))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/global-balance/draw", methods=["POST"])
+def api_global_draw():
+    data = request.get_json() or {}
+    try:
+        return jsonify(draw_from_surplus(get_current_month()["id"], data.get("amount", 0), data.get("category", ""), data.get("description", "")))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @app.route("/api/summary")

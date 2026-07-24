@@ -1,6 +1,7 @@
 from config import CATEGORY_CONFIG
 from database import get_connection
 from services.expenses import get_expenses
+from services.global_balance import get_global_balance
 
 
 def _empty_categories():
@@ -81,6 +82,7 @@ def dashboard_summary(month_id):
         },
         "categories": list(categories.values()),
         "expenses": get_expenses(month_id),
+        "global_balance": get_global_balance(month_id),
     }
 
 

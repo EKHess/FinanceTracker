@@ -33,6 +33,57 @@ async function loadDashboard() {
     renderSummary(dashboardState.summary);
     renderCategories(dashboardState.categories);
     renderChart(dashboardState.categories);
+    renderGlobalBalance(dashboardState.global_balance);
+}
+
+function renderGlobalBalance(state) {
+    if (!state) return;
+    const deficit = state.balance < 0 || state.pledge > 0;
+    const amount = document.getElementById("globalBalanceAmount");
+    amount.textContent = money.format(Math.abs(state.balance));
+    amount.classList.toggle("text-danger", deficit);
+    amount.classList.toggle("text-success", !deficit);
+    document.getElementById("globalBalancePanel").classList.toggle("is-deficit", deficit);
+    document.getElementById("globalBalancePanel").classList.toggle("is-surplus", !deficit);
+    document.getElementById("globalDeficitAction").classList.toggle("d-none", !deficit);
+    document.getElementById("globalSurplusAction").classList.toggle("d-none", deficit);
+    document.getElementById("globalBalanceCaption").textContent = deficit
+        ? "Global deficit · current income will help bring this back to zero"
+        : "Available carried surplus · including this active period";
+    document.getElementById("globalPledgeAmount").value = state.pledge || "";
+    document.getElementById("globalPledgeButtonLabel").textContent = state.pledge ? "Update pledge" : "Make pledge";
+    document.getElementById("globalPledgeHint").textContent = state.pledge
+        ? `${money.format(state.pledge)} is pledged this period. Updating it will revise the highlighted Savings expense.`
+        : "Earmark unallocated income as Savings. You can revise this pledge at any time.";
+}
+
+async function saveGlobalPledge(event) {
+    event.preventDefault();
+    await submitGlobalAction("/api/global-balance/pledge", { amount: parseFloat(document.getElementById("globalPledgeAmount").value) });
+}
+
+async function drawGlobalSurplus(event) {
+    event.preventDefault();
+    await submitGlobalAction("/api/global-balance/draw", {
+        description: document.getElementById("globalDrawDescription").value.trim(),
+        category: document.getElementById("globalDrawCategory").value,
+        amount: parseFloat(document.getElementById("globalDrawAmount").value),
+    });
+}
+
+async function submitGlobalAction(path, payload) {
+    const error = document.getElementById("globalBalanceError");
+    error.classList.add("d-none");
+    try {
+        await api(path, { method: "POST", body: JSON.stringify(payload) });
+        await loadDashboard();
+        document.getElementById("globalDrawDescription").value = "";
+        document.getElementById("globalDrawCategory").value = "";
+        document.getElementById("globalDrawAmount").value = "";
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
 }
 
 function scorecardDashboard(scorecard) {
@@ -673,7 +724,9 @@ function renderExpenseManager() {
     const visible = expenses.slice(0, visibleExpenseLimit);
     document.getElementById("expenseManagerRows").innerHTML = visible.length ? visible.map((expense) => {
         const category = window.CATEGORY_CONFIG[expense.category] || { label: expense.category, color: "#718096" };
-        return `<div class="expense-manager-row"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
+        const globalClass = expense.global_type ? ` global-expense ${expense.global_type}` : "";
+        const badge = expense.global_type === "pledge" ? '<span class="global-expense-badge"><i class="bi bi-shield-check"></i> Deficit pledge</span>' : expense.global_type === "draw" ? '<span class="global-expense-badge"><i class="bi bi-globe2"></i> From surplus</span>' : "";
+        return `<div class="expense-manager-row${globalClass}"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}${badge}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
     }).join("") : '<div class="expense-manager-empty">No matching expenses.</div>';
     const remaining = expenses.length - visible.length;
     const more = document.getElementById("showMoreExpenses");

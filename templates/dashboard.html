@@ -47,6 +47,21 @@
       <div class="col-xl-5"><div class="panel h-100 category-panel"><div class="panel-heading"><h2>Expenses by Category</h2></div><div id="categoryCards">{% for category_id, category in categories.items() %}<button class="category-row" data-category-id="{{ category_id }}" onclick="showCategory('{{ category_id }}')"><span class="category-icon" style="color: {{ category.color }}; background: {{ category.color }}18"><i class="bi bi-{{ category.icon }}"></i></span><strong>{{ category.label }}</strong><span class="category-amount" id="{{ category_id }}-total">$0.00</span><span class="category-percent" id="{{ category_id }}-percent">0.0%</span><span class="visually-hidden" id="{{ category_id }}-count">0</span><span class="visually-hidden" id="{{ category_id }}-caption">0 expenses</span></button>{% endfor %}</div><button class="manage-link" onclick="navigateTo('categories')">Manage Categories <i class="bi bi-arrow-right"></i></button></div></div>
       <div class="col-xl-7"><div class="panel h-100"><div class="panel-heading"><h2>Spending Overview</h2></div><div class="spending-layout"><div class="chart-square"><canvas id="categoryChart"></canvas></div><div id="categoryLegend" class="chart-legend"></div></div><div class="recurring-summary"><span class="recurring-summary-icon"><i class="bi bi-arrow-repeat"></i></span><div><small>Recurring Commitments</small><strong id="recurringTotal">$0.00</strong><button id="viewRecurringButton" onclick="openRecurringExpensesModal()">View all recurring <i class="bi bi-arrow-right"></i></button></div></div></div></div>
     </div>
+    <section id="globalBalancePanel" class="global-balance-panel mt-4" aria-live="polite">
+        <div class="global-balance-summary">
+            <span id="globalBalanceIcon" class="global-balance-icon"><i class="bi bi-globe2"></i></span>
+            <div><div class="global-balance-label">Global Surplus / Deficit <span class="info-tip" title="Saved workspace results plus your active period, carried forward over time."><i class="bi bi-info-circle"></i></span></div><h2 id="globalBalanceAmount">$0.00</h2><p id="globalBalanceCaption">Loading your carried balance…</p></div>
+        </div>
+        <div id="globalDeficitAction" class="global-action d-none">
+            <div><strong>Pay down your deficit</strong><p id="globalPledgeHint">Earmark unallocated income as Savings. You can revise this pledge at any time.</p></div>
+            <form onsubmit="saveGlobalPledge(event)"><div class="input-group"><span class="input-group-text">$</span><input id="globalPledgeAmount" class="form-control" type="number" min="0.01" step="0.01" required aria-label="Deficit payoff pledge"></div><button class="btn btn-success" type="submit"><i class="bi bi-shield-check me-1"></i><span id="globalPledgeButtonLabel">Make pledge</span></button></form>
+        </div>
+        <div id="globalSurplusAction" class="global-action d-none">
+            <div><strong>Put saved cash to work</strong><p>Allocate carried surplus to a category without increasing this period's income.</p></div>
+            <form onsubmit="drawGlobalSurplus(event)"><input id="globalDrawDescription" class="form-control" placeholder="What is this for?" required><select id="globalDrawCategory" class="form-select" required><option value="">Choose category</option>{% for category_id, category in categories.items() %}<option value="{{ category_id }}">{{ category.label }}</option>{% endfor %}</select><div class="input-group"><span class="input-group-text">$</span><input id="globalDrawAmount" class="form-control" type="number" min="0.01" step="0.01" required aria-label="Surplus draw amount"></div><button class="btn btn-success" type="submit"><i class="bi bi-arrow-down-right me-1"></i>Allocate</button></form>
+        </div>
+        <div id="globalBalanceError" class="global-balance-error d-none"></div>
+    </section>
 </section>
 <section class="app-page" id="page-income">
 <header class="page-header"><div><h1>Income Sources</h1><p>Track income sources and calculate your take-home pay.</p></div><button class="btn btn-success" onclick="saveIncomeProfile()"><i class="bi bi-check2 me-1"></i>Save Income</button></header>
