@@ -1,6 +1,8 @@
+import calendar
+from datetime import date, timedelta
+
 from config import CATEGORY_CONFIG
 from database import get_connection
-from datetime import date
 
 
 def normalize_category(category):
@@ -35,6 +37,49 @@ def get_expenses(month_id, category=None):
     conn.close()
 
     return [dict(row) for row in rows]
+
+
+def _add_months(value, count, preferred_day):
+    month_index = value.year * 12 + value.month - 1 + count
+    year, month_zero = divmod(month_index, 12)
+    month = month_zero + 1
+    return date(year, month, min(preferred_day, calendar.monthrange(year, month)[1]))
+
+
+def _next_occurrence(value, interval, unit, preferred_day):
+    if unit == "day":
+        return value + timedelta(days=interval)
+    if unit == "week":
+        return value + timedelta(weeks=interval)
+    if unit == "month":
+        return _add_months(value, interval, preferred_day)
+    return _add_months(value, interval * 12, preferred_day)
+
+
+def occurs_in_period(expense, period_start, period_end):
+    """Return whether an expense has an occurrence in [start, end)."""
+    if not expense["recurring"]:
+        return True
+    occurrence = date.fromisoformat(expense["expense_date"])
+    start = date.fromisoformat(period_start) if isinstance(period_start, str) else period_start
+    end = date.fromisoformat(period_end) if isinstance(period_end, str) else period_end
+    interval = int(expense["recurrence_interval"])
+    preferred_day = occurrence.day
+    while occurrence < start:
+        occurrence = _next_occurrence(occurrence, interval, expense["recurrence_unit"], preferred_day)
+    return occurrence < end
+
+
+def get_workspace_expenses(month_id, category=None):
+    """Return only charges that apply to the active configured workspace period."""
+    expenses = get_expenses(month_id, category)
+    conn = get_connection()
+    schedule = conn.execute("SELECT period_start, next_run FROM workspace_schedule WHERE id = 1").fetchone()
+    conn.close()
+    if schedule is None:
+        return expenses
+    period_end = schedule["next_run"].split("T", 1)[0]
+    return [expense for expense in expenses if occurs_in_period(expense, schedule["period_start"], period_end)]
 
 
 def normalize_expense_date(expense_date=None):

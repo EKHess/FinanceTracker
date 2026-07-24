@@ -195,6 +195,55 @@ def test_expenses_store_default_and_explicit_dates(tmp_path, monkeypatch):
     assert "at least 1" in invalid.get_json()["error"]
 
 
+def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/expenses", json={
+        "description": "Home Insurance", "amount": 172, "category": "fixed",
+        "recurring": True, "expense_date": "2030-01-05",
+        "recurrence_interval": 1, "recurrence_unit": "month",
+    }).status_code == 200
+    assert client.post("/api/expenses", json={
+        "description": "LingQ Subscription", "amount": 175, "category": "guilt_free",
+        "recurring": True, "expense_date": "2030-01-21",
+        "recurrence_interval": 1, "recurrence_unit": "year",
+    }).status_code == 200
+
+    def set_period(start, end):
+        conn = database.get_connection()
+        conn.execute(
+            "UPDATE workspace_schedule SET period_start = ?, next_run = ? WHERE id = 1",
+            (start, f"{end}T00:00"),
+        )
+        conn.commit()
+        conn.close()
+
+    set_period("2030-02-01", "2030-03-01")
+    february = client.get("/api/dashboard").get_json()
+    assert [expense["description"] for expense in february["expenses"]] == ["Home Insurance"]
+    assert february["summary"]["spending"] == 172
+    assert {expense["description"] for expense in february["recurring_expenses"]} == {
+        "Home Insurance", "LingQ Subscription",
+    }
+
+    set_period("2030-12-20", "2031-01-20")
+    before_annual_due_date = client.get("/api/dashboard").get_json()
+    assert [expense["description"] for expense in before_annual_due_date["expenses"]] == ["Home Insurance"]
+    assert before_annual_due_date["summary"]["spending"] == 172
+
+    set_period("2031-01-20", "2031-02-20")
+    annual_due_period = client.get("/api/dashboard").get_json()
+    assert {expense["description"] for expense in annual_due_period["expenses"]} == {
+        "Home Insurance", "LingQ Subscription",
+    }
+    assert annual_due_period["summary"]["spending"] == 347
+
+
 def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

@@ -753,7 +753,7 @@ function handleRecurringExpenseSearch() {
 function sortedRecurringExpenses() {
     const prefix = document.getElementById("recurringExpenseSearch").value.trim().toLocaleLowerCase();
     const sort = document.getElementById("recurringExpenseSort").value;
-    const expenses = (currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring && expense.description.toLocaleLowerCase().startsWith(prefix));
+    const expenses = (currentWorkspaceState?.recurring_expenses || currentWorkspaceState?.expenses || []).filter((expense) => expense.recurring && expense.description.toLocaleLowerCase().startsWith(prefix));
     const byDescription = (a, b) => a.description.localeCompare(b.description, undefined, { sensitivity: "base" });
     if (sort === "description") expenses.sort(byDescription);
     else if (sort === "category") expenses.sort((a, b) => (window.CATEGORY_CONFIG[a.category]?.label || a.category).localeCompare(window.CATEGORY_CONFIG[b.category]?.label || b.category) || byDescription(a, b));
@@ -806,7 +806,8 @@ function showMoreExpenses() {
 }
 
 function editManagedExpense(id) {
-    const expense = dashboardState.expenses.find((item) => item.id === id);
+    const expense = dashboardState.expenses.find((item) => item.id === id)
+        || currentWorkspaceState?.recurring_expenses?.find((item) => item.id === id);
     if (!expense) return;
     document.getElementById("quickExpenseId").value = expense.id;
     document.getElementById("quickExpenseDescription").value = expense.description;
