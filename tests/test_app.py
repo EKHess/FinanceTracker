@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime
 
 
 def test_dashboard_payload_uses_category_ids(tmp_path, monkeypatch):
@@ -22,6 +23,32 @@ def test_dashboard_payload_uses_category_ids(tmp_path, monkeypatch):
         "guilt_free",
     }
     assert payload["summary"]["income"] == 0
+
+
+def test_workspace_schedule_can_be_customized_and_creates_due_report(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    import services.workspace_schedule as schedule_service
+    importlib.reload(database)
+    importlib.reload(schedule_service)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    response = client.put("/api/workspace-schedule", json={
+        "mode": "interval", "interval_value": 2, "interval_unit": "week",
+        "monthly_day": 25, "time_of_day": "24:00",
+    })
+    assert response.status_code == 200
+    assert response.get_json()["time_of_day"] == "24:00"
+
+    conn = database.get_connection()
+    conn.execute("UPDATE workspace_schedule SET period_start='2026-07-01', next_run='2026-07-15T12:00'")
+    conn.commit(); conn.close()
+    report = schedule_service.process_due_workspace(datetime(2026, 7, 15, 12, 1))
+    assert report["name"] == "Financial Report · 2026-07-01 to 2026-07-15"
+    assert report["start_date"] == "2026-07-01"
+    assert report["end_date"] == "2026-07-15"
 
 
 def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):

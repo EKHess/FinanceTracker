@@ -8,6 +8,7 @@ let workspaceIndex = 0;
 let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
 let visibleRecurringExpenseLimit = 5;
+let workspaceSchedule = null;
 
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
@@ -27,7 +28,50 @@ function navigateTo(page) {
     document.querySelectorAll(".app-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
     window.scrollTo({ top: 0, behavior: "smooth" });
     if (page === "income" || page === "settings") initializeIncomeEditor();
+    if (page === "settings") loadWorkspaceSchedule();
     if (page === "recurring") renderRecurringExpensesPage();
+}
+
+function openWorkspaceSettings() {
+    navigateTo("settings");
+    document.getElementById("generalSettings").classList.add("show");
+    document.getElementById("workspaceScheduleForm").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderWorkspaceSchedule(schedule) {
+    workspaceSchedule = schedule;
+    const nextRun = new Date(schedule.next_run);
+    document.getElementById("workspaceSaveDay").textContent = nextRun.toLocaleDateString([], { dateStyle: "long" });
+    document.getElementById("workspaceSaveTime").textContent = nextRun.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    document.getElementById(schedule.mode === "monthly" ? "workspaceModeMonthly" : "workspaceModeInterval").checked = true;
+    document.getElementById("workspaceMonthlyDay").value = schedule.monthly_day;
+    document.getElementById("workspaceIntervalValue").value = schedule.interval_value;
+    document.getElementById("workspaceIntervalUnit").value = schedule.interval_unit;
+    document.getElementById("workspaceTime").value = schedule.time_of_day;
+}
+
+async function loadWorkspaceSchedule() {
+    renderWorkspaceSchedule(await api("/api/workspace-schedule"));
+}
+
+async function saveWorkspaceSchedule(event) {
+    event.preventDefault();
+    const status = document.getElementById("workspaceScheduleStatus");
+    try {
+        const schedule = await api("/api/workspace-schedule", { method: "PUT", body: JSON.stringify({
+            mode: document.querySelector('[name="workspaceScheduleMode"]:checked')?.value,
+            monthly_day: Number(document.getElementById("workspaceMonthlyDay").value),
+            interval_value: Number(document.getElementById("workspaceIntervalValue").value),
+            interval_unit: document.getElementById("workspaceIntervalUnit").value,
+            time_of_day: document.getElementById("workspaceTime").value,
+        }) });
+        renderWorkspaceSchedule(schedule);
+        status.textContent = "Saved.";
+        status.className = "small ms-2 text-success";
+    } catch (error) {
+        status.textContent = error.message;
+        status.className = "small ms-2 text-danger";
+    }
 }
 
 async function api(path, options = {}) {
@@ -158,12 +202,12 @@ async function displayWorkspace(index) {
     document.getElementById("previousWorkspace").disabled = index === 0;
     document.getElementById("nextWorkspace").disabled = index === workspaceTimeline.length - 1;
     document.getElementById("addExpenseButton").disabled = historical;
-    document.getElementById("saveWorkspaceButton").disabled = historical;
     document.getElementById("viewRecurringButton").disabled = historical;
     document.querySelectorAll("#categoryCards .category-row").forEach((button) => button.disabled = historical);
 }
 
 async function initializeDashboard() {
+    await loadWorkspaceSchedule();
     await loadDashboard();
     await initializeWorkspaceNavigation(true);
 }
@@ -832,6 +876,18 @@ async function deleteExpense(id) {
 
 initializeTheme();
 initializeDashboard();
+setInterval(async () => {
+    const previousRun = workspaceSchedule?.next_run;
+    try {
+        await loadWorkspaceSchedule();
+        if (previousRun && previousRun !== workspaceSchedule.next_run) {
+            await loadDashboard();
+            await initializeWorkspaceNavigation(true);
+        }
+    } catch (error) {
+        console.warn("Unable to check the workspace schedule", error);
+    }
+}, 60000);
 
 function openSaveScorecardModal() {
     const today = new Date();
