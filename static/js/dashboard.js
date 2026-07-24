@@ -44,10 +44,17 @@ function renderWorkspaceSchedule(schedule) {
     document.getElementById("workspaceSaveDay").textContent = nextRun.toLocaleDateString([], { dateStyle: "long" });
     document.getElementById("workspaceSaveTime").textContent = nextRun.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
     document.getElementById(schedule.mode === "monthly" ? "workspaceModeMonthly" : "workspaceModeInterval").checked = true;
+    syncWorkspaceScheduleMode();
     document.getElementById("workspaceMonthlyDay").value = schedule.monthly_day;
     document.getElementById("workspaceIntervalValue").value = schedule.interval_value;
     document.getElementById("workspaceIntervalUnit").value = schedule.interval_unit;
     document.getElementById("workspaceTime").value = schedule.time_of_day;
+}
+
+function syncWorkspaceScheduleMode() {
+    const monthly = document.getElementById("workspaceModeMonthly").checked;
+    document.getElementById("workspaceMonthlyFields").classList.toggle("d-none", !monthly);
+    document.getElementById("workspaceIntervalFields").classList.toggle("d-none", monthly);
 }
 
 async function loadWorkspaceSchedule() {
