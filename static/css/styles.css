@@ -173,3 +173,42 @@ body { font-size: 16px; }
 .global-expense-badge { display: block; width: fit-content; margin-top: 4px; padding: 2px 7px; border-radius: 99px; color: #16744c; background: #dcf3e7; font-size: 10px; font-weight: 750; }.pledge .global-expense-badge { color: #94620b; background: #ffedbd; }
 @media (max-width: 1050px) { .global-balance-panel { grid-template-columns: 1fr; }.global-action { padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--line); } }
 @media (max-width: 700px) { .global-action form,.global-action:first-of-type form { grid-template-columns: 1fr; } }
+
+/* Settings panels are alphabetized in the template and share one collapsible pattern. */
+.settings-list { max-width: 1100px; display: grid; gap: 14px; }
+.setting-panel { padding: 0; overflow: hidden; }
+.setting-toggle { width: 100%; padding: 20px; display: flex; align-items: center; gap: 14px; border: 0; background: transparent; color: var(--ink); text-align: left; }
+.setting-toggle:hover { background: rgba(21,151,93,.04); }
+.setting-copy { min-width: 0; display: grid; gap: 5px; }
+.setting-copy strong { font-size: 16px; }
+.setting-copy small { color: var(--muted); font-size: 14px; }
+.setting-chevron { margin-left: auto; color: var(--muted); transition: transform .2s ease; }
+.setting-toggle[aria-expanded="true"] .setting-chevron { transform: rotate(180deg); }
+.setting-content { padding: 20px; border-top: 1px solid var(--line); }
+.theme-setting { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+.theme-setting label { font-weight: 700; }
+.theme-setting p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.theme-setting .form-switch { margin: 0; padding-left: 3rem; }
+.theme-setting .form-check-input { width: 2.5rem; height: 1.3rem; cursor: pointer; }
+
+html[data-bs-theme="dark"] { --ink: #e7edf5; --muted: #9cabbc; --line: #314154; --canvas: #101820; color-scheme: dark; }
+html[data-bs-theme="dark"] body { background: var(--canvas); color: var(--ink); }
+html[data-bs-theme="dark"] .sidebar { background: linear-gradient(165deg,#071b2c,#050e17); box-shadow: 8px 0 30px rgba(0,0,0,.25); }
+html[data-bs-theme="dark"] .card, html[data-bs-theme="dark"] .panel, html[data-bs-theme="dark"] .modal-content,
+html[data-bs-theme="dark"] .income-option, html[data-bs-theme="dark"] .workspace-control,
+html[data-bs-theme="dark"] .expense-row-actions button, html[data-bs-theme="dark"] .show-more-expenses { background-color: #19232e; color: var(--ink); }
+html[data-bs-theme="dark"] .subpanel, html[data-bs-theme="dark"] .scorecard-editor-card,
+html[data-bs-theme="dark"] .expense-manager-head { background: #141e28; }
+html[data-bs-theme="dark"] .category-row:hover, html[data-bs-theme="dark"] .workspace-control button:hover:not(:disabled) { background: #202f3b; }
+html[data-bs-theme="dark"] .quick-recurrence-row { border-color: #315345; background: #172820; color: #b7d2c4; }
+html[data-bs-theme="dark"] .recurring-summary { border-color: #315345; background: linear-gradient(90deg,#172820,#19232e); }
+html[data-bs-theme="dark"] .recurring-summary small { color: #a8c3b5; }
+html[data-bs-theme="dark"] .global-balance-panel { border-color: #315345; background: linear-gradient(120deg,#19232e 35%,#172820); }
+html[data-bs-theme="dark"] .global-balance-panel.is-deficit { border-color: #603c3c; background: linear-gradient(120deg,#19232e 35%,#2b1b1b); }
+html[data-bs-theme="dark"] .form-control, html[data-bs-theme="dark"] .form-select, html[data-bs-theme="dark"] .input-group-text { background-color: #111a23; border-color: var(--line); color: var(--ink); }
+html[data-bs-theme="dark"] .form-control::placeholder { color: #718093; }
+html[data-bs-theme="dark"] .table { --bs-table-bg: transparent; --bs-table-color: var(--ink); --bs-table-border-color: var(--line); }
+html[data-bs-theme="dark"] .text-muted { color: var(--muted) !important; }
+html[data-bs-theme="dark"] .btn-close { filter: invert(1) grayscale(100%) brightness(180%); }
+html[data-bs-theme="dark"] .category-row { border-bottom-color: var(--line); }
+@media (max-width: 576px) { .setting-toggle, .setting-content { padding: 16px; }.theme-setting { align-items: flex-start; } }
