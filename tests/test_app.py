@@ -42,6 +42,8 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
             "amount": 400,
             "category": "fixed",
             "recurring": True,
+            "recurrence_interval": 2,
+            "recurrence_unit": "week",
         },
     ).status_code == 200
 
@@ -49,6 +51,8 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
     assert dashboard["summary"]["spending"] == 400
     assert dashboard["summary"]["surplus"] == 600
     assert dashboard["summary"]["recurring_total"] == 400
+    assert dashboard["expenses"][0]["recurrence_interval"] == 2
+    assert dashboard["expenses"][0]["recurrence_unit"] == "week"
 
     expense_id = dashboard["expenses"][0]["id"]
     assert client.put(
@@ -58,10 +62,43 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
             "amount": 450,
             "category": "fixed",
             "recurring": True,
+            "recurrence_interval": 3,
+            "recurrence_unit": "month",
         },
     ).status_code == 200
     assert client.delete(f"/api/expenses/{expense_id}").status_code == 200
     assert client.get("/api/dashboard").get_json()["summary"]["spending"] == 0
+
+
+def test_expenses_store_default_and_explicit_dates(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    import database
+    import app as app_module
+    from datetime import date
+
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/expenses", json={
+        "description": "Coffee", "amount": 4.5, "category": "guilt_free"
+    }).status_code == 200
+    coffee = client.get("/api/expenses").get_json()[0]
+    assert coffee["expense_date"] == date.today().isoformat()
+
+    assert client.put(f"/api/expenses/{coffee['id']}", json={
+        "description": "Coffee", "amount": 4.5, "category": "guilt_free",
+        "expense_date": "2026-06-02",
+    }).status_code == 200
+    assert client.get("/api/expenses").get_json()[0]["expense_date"] == "2026-06-02"
+
+    invalid = client.post("/api/expenses", json={
+        "description": "Invalid subscription", "amount": 5, "category": "fixed",
+        "recurring": True, "recurrence_interval": 0, "recurrence_unit": "month",
+    })
+    assert invalid.status_code == 400
+    assert "at least 1" in invalid.get_json()["error"]
 
 
 def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, monkeypatch):
@@ -82,6 +119,8 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
             "amount": 1000,
             "category": "fixed",
             "recurring": True,
+            "recurrence_interval": 3,
+            "recurrence_unit": "month",
         },
     ).status_code == 200
     assert client.post(
@@ -103,6 +142,10 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     scorecard = response.get_json()
     assert scorecard["name"] == "July 2026"
     assert scorecard["total_spending"] == 1150
+    assert scorecard["income"] == 2000
+    assert scorecard["income_period_duration"] == 1
+    assert scorecard["income_period_unit"] == "month"
+    assert scorecard["income_snapshot_present"] == 1
     assert {expense["description"] for expense in scorecard["expenses"]} == {"Rent", "Concert"}
 
     dashboard = client.get("/api/dashboard").get_json()
@@ -113,6 +156,9 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     guilt_free = next(category for category in saved["categories"] if category["id"] == "guilt_free")
     assert guilt_free["total"] == 150
     assert guilt_free["expenses"][0]["description"] == "Concert"
+    rent = next(expense for expense in saved["expenses"] if expense["description"] == "Rent")
+    assert rent["recurrence_interval"] == 3
+    assert rent["recurrence_unit"] == "month"
 
 
 def test_scorecard_requires_name_and_valid_date_range(tmp_path, monkeypatch):

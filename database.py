@@ -2,7 +2,7 @@ import shutil
 import sqlite3
 import tempfile
 from pathlib import Path
-from datetime import datetime
+from datetime import date, datetime
 
 DATABASE_FOLDER = Path("data")
 DATABASE_FOLDER.mkdir(exist_ok=True)
@@ -63,6 +63,9 @@ def initialize_database():
         amount REAL NOT NULL,
         category TEXT NOT NULL,
         recurring INTEGER DEFAULT 0,
+        recurrence_interval INTEGER NOT NULL DEFAULT 1,
+        recurrence_unit TEXT NOT NULL DEFAULT 'month',
+        expense_date TEXT NOT NULL,
 
         FOREIGN KEY(month_id)
             REFERENCES months(id)
@@ -77,6 +80,10 @@ def initialize_database():
         start_date TEXT NOT NULL,
         end_date TEXT NOT NULL,
         total_spending REAL NOT NULL DEFAULT 0,
+        income REAL NOT NULL DEFAULT 0,
+        income_period_duration REAL NOT NULL DEFAULT 1,
+        income_period_unit TEXT NOT NULL DEFAULT 'month',
+        income_snapshot_present INTEGER NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -89,6 +96,9 @@ def initialize_database():
         amount REAL NOT NULL,
         category TEXT NOT NULL,
         recurring INTEGER DEFAULT 0,
+        recurrence_interval INTEGER NOT NULL DEFAULT 1,
+        recurrence_unit TEXT NOT NULL DEFAULT 'month',
+        expense_date TEXT NOT NULL,
         FOREIGN KEY(scorecard_id)
             REFERENCES scorecards(id)
     )
@@ -130,6 +140,24 @@ def initialize_database():
     _ensure_column(cursor, "months", "tax_year", "INTEGER")
     _ensure_column(cursor, "tax_rulesets", "basic_personal_credit_enabled", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(cursor, "tax_rulesets", "basic_personal_credit_amount", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "expenses", "expense_date", "TEXT")
+    _ensure_column(cursor, "scorecard_expenses", "expense_date", "TEXT")
+    _ensure_column(cursor, "expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "scorecard_expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "scorecard_expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "scorecards", "income", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "scorecards", "income_period_duration", "REAL NOT NULL DEFAULT 1")
+    _ensure_column(cursor, "scorecards", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
+    _ensure_column(cursor, "scorecards", "income_snapshot_present", "INTEGER NOT NULL DEFAULT 0")
+    cursor.execute(
+        "UPDATE expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
+        (date.today().isoformat(),),
+    )
+    cursor.execute(
+        "UPDATE scorecard_expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
+        (date.today().isoformat(),),
+    )
 
     conn.commit()
     conn.close()

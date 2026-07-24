@@ -1,5 +1,6 @@
 from config import CATEGORY_CONFIG
 from database import get_connection
+from datetime import date
 
 
 def normalize_category(category):
@@ -36,12 +37,35 @@ def get_expenses(month_id, category=None):
     return [dict(row) for row in rows]
 
 
-def add_expense(month_id, description, amount, category, recurring):
+def normalize_expense_date(expense_date=None):
+    value = expense_date or date.today().isoformat()
+    try:
+        return date.fromisoformat(value).isoformat()
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Expense date must be a valid ISO date") from exc
+
+
+def normalize_recurrence(recurring, interval=1, unit="month"):
+    if not recurring:
+        return 1, "month"
+    try:
+        interval = int(interval)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Recurrence interval must be a whole number") from exc
+    if interval < 1:
+        raise ValueError("Recurrence interval must be at least 1")
+    if unit not in {"day", "week", "month", "year"}:
+        raise ValueError("Unknown recurrence unit")
+    return interval, unit
+
+
+def add_expense(month_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
+    recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
     conn.execute(
         """
-        INSERT INTO expenses (month_id, description, amount, category, recurring)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             month_id,
@@ -49,21 +73,25 @@ def add_expense(month_id, description, amount, category, recurring):
             amount,
             normalize_category(category),
             1 if recurring else 0,
+            normalize_expense_date(expense_date),
+            recurrence_interval,
+            recurrence_unit,
         ),
     )
     conn.commit()
     conn.close()
 
 
-def update_expense(expense_id, description, amount, category, recurring):
+def update_expense(expense_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
+    recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
     conn.execute(
         """
         UPDATE expenses
-        SET description = ?, amount = ?, category = ?, recurring = ?
+        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date), recurrence_interval = ?, recurrence_unit = ?
         WHERE id = ?
         """,
-        (description.strip(), amount, normalize_category(category), 1 if recurring else 0, expense_id),
+        (description.strip(), amount, normalize_category(category), 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, recurrence_interval, recurrence_unit, expense_id),
     )
     conn.commit()
     conn.close()
