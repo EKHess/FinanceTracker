@@ -38,6 +38,23 @@ function openWorkspaceSettings() {
     document.getElementById("workspaceScheduleForm").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
+
+function formatWorkspacePeriodDate(value) {
+    if (!value) return "";
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString([], { dateStyle: "medium" });
+}
+
+function workspacePeriodCaption(period) {
+    if (!period?.start || !period?.end) return "Current workspace period: unavailable";
+    return `Current workspace period: ${formatWorkspacePeriodDate(period.start)} – ${formatWorkspacePeriodDate(period.end)}`;
+}
+
+function setWorkspacePeriodCaption(text) {
+    const caption = document.getElementById("workspacePeriodCaption");
+    if (caption) caption.textContent = text;
+}
+
 function renderWorkspaceSchedule(schedule) {
     workspaceSchedule = schedule;
     const nextRun = new Date(schedule.next_run);
@@ -75,6 +92,8 @@ async function saveWorkspaceSchedule(event) {
             time_of_day: `${document.getElementById("workspaceTimeHours").value}:${document.getElementById("workspaceTimeMinutes").value}`,
         }) });
         renderWorkspaceSchedule(schedule);
+        await loadDashboard();
+        await initializeWorkspaceNavigation(true);
         status.textContent = "Saved.";
         status.className = "small ms-2 text-success";
     } catch (error) {
@@ -199,6 +218,7 @@ async function displayWorkspace(index) {
         renderCategories(dashboardState.categories);
         renderChart(dashboardState.categories);
         document.getElementById("budgetViewCaption").textContent = `${scorecard.start_date} – ${scorecard.end_date} saved scorecard.`;
+        setWorkspacePeriodCaption(`Saved report period: ${formatWorkspacePeriodDate(scorecard.start_date)} – ${formatWorkspacePeriodDate(scorecard.end_date)}`);
     } else {
         dashboardState = currentWorkspaceState || await api("/api/dashboard");
         currentWorkspaceState = dashboardState;
@@ -206,6 +226,7 @@ async function displayWorkspace(index) {
         renderCategories(dashboardState.categories);
         renderChart(dashboardState.categories);
         document.getElementById("budgetViewCaption").textContent = "Your active, unsaved workspace.";
+        setWorkspacePeriodCaption(workspacePeriodCaption(dashboardState.workspace_period));
     }
     document.getElementById("workspaceLabel").textContent = selection.label;
     document.getElementById("previousWorkspace").disabled = index === 0;

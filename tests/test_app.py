@@ -225,6 +225,7 @@ def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_p
 
     set_period("2030-02-01", "2030-03-01")
     february = client.get("/api/dashboard").get_json()
+    assert february["workspace_period"] == {"start": "2030-02-01", "end": "2030-03-01"}
     assert [expense["description"] for expense in february["expenses"]] == ["Home Insurance"]
     assert february["summary"]["spending"] == 172
     assert {expense["description"] for expense in february["recurring_expenses"]} == {
@@ -238,6 +239,7 @@ def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_p
 
     set_period("2031-01-20", "2031-02-20")
     annual_due_period = client.get("/api/dashboard").get_json()
+    assert annual_due_period["workspace_period"] == {"start": "2031-01-20", "end": "2031-02-20"}
     assert {expense["description"] for expense in annual_due_period["expenses"]} == {
         "Home Insurance", "LingQ Subscription",
     }

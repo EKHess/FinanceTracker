@@ -29,6 +29,18 @@ def category_totals(month_id):
     return categories
 
 
+def _workspace_period():
+    conn = get_connection()
+    schedule = conn.execute("SELECT period_start, next_run FROM workspace_schedule WHERE id = 1").fetchone()
+    conn.close()
+    if schedule is None:
+        return None
+    return {
+        "start": schedule["period_start"],
+        "end": schedule["next_run"].split("T", 1)[0],
+    }
+
+
 def dashboard_summary(month_id):
     conn = get_connection()
     month = conn.execute("SELECT * FROM months WHERE id = ?", (month_id,)).fetchone()
@@ -46,6 +58,7 @@ def dashboard_summary(month_id):
 
     return {
         "month": dict(month),
+        "workspace_period": _workspace_period(),
         "summary": {
             "income": income,
             "spending": spending,
