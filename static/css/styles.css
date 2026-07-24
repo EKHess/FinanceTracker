@@ -151,6 +151,9 @@ body { font-size: 16px; }
 .workspace-save-notice { display: flex; align-items: center; gap: 12px; padding: 14px 16px; color: #65717d; background: #f1f3f5; border: 1px solid #dfe3e7; border-radius: 8px; font-size: 14px; }
 .workspace-save-notice > i { font-size: 20px; color: var(--green); }
 .workspace-save-notice strong { color: var(--green); font-weight: 700; }
+.workspace-time-fields { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.workspace-time-fields span { color: var(--muted); font-size: 18px; font-weight: 700; }
+.workspace-time-fields input { text-align: center; }
 html[data-bs-theme="dark"] .workspace-save-notice { color: #b8c2cc; background: #202a33; border-color: #33414d; }
 .category-row:disabled { opacity: .72; cursor: default; }
 @media (max-width: 700px) { .workspace-control { width: 100%; }.header-actions { width: 100%; }.header-actions .btn { width: 100%; } }

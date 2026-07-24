@@ -48,7 +48,9 @@ function renderWorkspaceSchedule(schedule) {
     document.getElementById("workspaceMonthlyDay").value = schedule.monthly_day;
     document.getElementById("workspaceIntervalValue").value = schedule.interval_value;
     document.getElementById("workspaceIntervalUnit").value = schedule.interval_unit;
-    document.getElementById("workspaceTime").value = schedule.time_of_day;
+    const [hours, minutes] = schedule.time_of_day.split(":");
+    document.getElementById("workspaceTimeHours").value = hours;
+    document.getElementById("workspaceTimeMinutes").value = minutes;
 }
 
 function syncWorkspaceScheduleMode() {
@@ -70,7 +72,7 @@ async function saveWorkspaceSchedule(event) {
             monthly_day: Number(document.getElementById("workspaceMonthlyDay").value),
             interval_value: Number(document.getElementById("workspaceIntervalValue").value),
             interval_unit: document.getElementById("workspaceIntervalUnit").value,
-            time_of_day: document.getElementById("workspaceTime").value,
+            time_of_day: `${document.getElementById("workspaceTimeHours").value}:${document.getElementById("workspaceTimeMinutes").value}`,
         }) });
         renderWorkspaceSchedule(schedule);
         status.textContent = "Saved.";
