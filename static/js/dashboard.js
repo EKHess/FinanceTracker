@@ -9,6 +9,19 @@ let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
 let visibleRecurringExpenseLimit = 5;
 
+function setDarkMode(enabled) {
+    const theme = enabled ? "dark" : "light";
+    document.documentElement.dataset.bsTheme = theme;
+    localStorage.setItem("finance-tracker-theme", theme);
+    const toggle = document.getElementById("darkModeToggle");
+    if (toggle) toggle.checked = enabled;
+    if (categoryChart) categoryChart.draw();
+}
+
+function initializeTheme() {
+    setDarkMode(document.documentElement.dataset.bsTheme === "dark");
+}
+
 function navigateTo(page) {
     document.querySelectorAll(".app-page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
     document.querySelectorAll(".app-nav [data-page]").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
@@ -222,10 +235,10 @@ function renderChart(categories) {
             context.save();
             context.textAlign = "center";
             context.textBaseline = "middle";
-            context.fillStyle = "#10223b";
+            context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
             context.font = "700 18px Inter, sans-serif";
             context.fillText(money.format(total), (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 - 6);
-            context.fillStyle = "#718096";
+            context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--muted").trim();
             context.font = "12px Inter, sans-serif";
             context.fillText("Total Expenses", (chartArea.left + chartArea.right) / 2, (chartArea.top + chartArea.bottom) / 2 + 14);
             context.restore();
@@ -817,6 +830,7 @@ async function deleteExpense(id) {
     await refreshCategory();
 }
 
+initializeTheme();
 initializeDashboard();
 
 function openSaveScorecardModal() {
