@@ -2,6 +2,7 @@ from config import CATEGORY_CONFIG
 from database import get_connection
 from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
+from services.global_balance import get_global_balance
 
 
 def _scorecard_expenses(scorecard_id):
@@ -49,10 +50,23 @@ def _serialize_scorecard(row, include_expenses=False):
     scorecard["total_spending"] = float(scorecard["total_spending"])
     scorecard["income"] = float(scorecard.get("income") or 0)
     scorecard["surplus"] = scorecard["income"] - scorecard["total_spending"]
+    scorecard["global_balance"] = float(scorecard.get("global_balance") or 0)
     if include_expenses:
         expenses = _scorecard_expenses(scorecard["id"])
         scorecard["expenses"] = expenses
         scorecard["categories"] = _categories_from_expenses(expenses)
+        category_with_most = max(scorecard["categories"], key=lambda category: category["total"], default=None)
+        largest_expense = max(expenses, key=lambda expense: float(expense["amount"]), default=None)
+        recurring = [expense for expense in expenses if expense["recurring"]]
+        recurring_spending = sum(float(expense["amount"]) for expense in recurring)
+        scorecard["summary"] = {
+            "category_spending": {category["id"]: category["total"] for category in scorecard["categories"]},
+            "largest_expense": ({**largest_expense, "category_label": CATEGORY_CONFIG[largest_expense["category"]]["label"]} if largest_expense else None),
+            "largest_category": ({"id": category_with_most["id"], "label": category_with_most["label"], "total": category_with_most["total"]} if category_with_most else None),
+            "expense_count": len(expenses),
+            "recurring_count": len(recurring),
+            "recurring_percent": (recurring_spending / scorecard["total_spending"] * 100 if scorecard["total_spending"] else 0),
+        }
     return scorecard
 
 
@@ -93,7 +107,7 @@ def list_scorecards():
     rows = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
         FROM scorecards
         ORDER BY created_at DESC, id DESC
         """
@@ -107,7 +121,7 @@ def get_scorecard(scorecard_id):
     row = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
         FROM scorecards
         WHERE id = ?
         """,
@@ -129,17 +143,18 @@ def create_scorecard(month_id, name, start_date, end_date):
         raise ValueError("Start date must be before end date")
 
     snapshot = dashboard_summary(month_id)
+    global_balance = get_global_balance(month_id)["balance"]
     expenses = snapshot["expenses"]
 
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present, global_balance)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
         """,
         (name, start_date, end_date, snapshot["summary"]["spending"], snapshot["summary"]["income"],
-         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"]),
+         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"], global_balance),
     )
     scorecard_id = cursor.lastrowid
 

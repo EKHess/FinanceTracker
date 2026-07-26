@@ -1066,17 +1066,24 @@ function renderScorecardDetails(scorecard) {
     editingScorecardExpenseId = null;
     const details = document.getElementById("scorecardDetails");
     details.classList.remove("text-muted");
+    const largestExpense = scorecard.summary.largest_expense;
+    const largestCategory = scorecard.summary.largest_category;
+    const categoryTotals = scorecard.categories.map((category) => `<div class="report-category-total" style="--category-color:${category.color}"><span>${escapeHtml(category.label)}</span><strong>${money.format(category.total)}</strong></div>`).join("");
     details.innerHTML = `
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
             <div>
                 <h4>${escapeHtml(scorecard.name)}</h4>
                 <div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div>
             </div>
-            <div class="text-end">
-                <h4>${money.format(scorecard.total_spending)}</h4>
-                <a class="btn btn-sm btn-outline-primary me-1" href="/api/scorecards/${scorecard.id}/export.csv"><i class="bi bi-filetype-csv me-1"></i>Export to CSV</a><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
+            <div class="report-detail-actions">
+                <a class="report-icon-button" href="/api/scorecards/${scorecard.id}/export.csv" aria-label="Download report as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="report-icon-button danger" onclick="deleteActiveScorecard()" aria-label="Delete report" title="Delete report"><i class="bi bi-trash"></i></button>
             </div>
         </div>
+        <section class="report-summary" aria-label="Financial report summary">
+            <div class="report-summary-primary"><article><span>Total spending</span><strong>${money.format(scorecard.total_spending)}</strong></article><article><span>Surplus / Deficit</span><strong class="${scorecard.surplus < 0 ? "negative" : "positive"}">${money.format(scorecard.surplus)}</strong></article><article><span>Global Surplus / Deficit</span><strong class="${scorecard.global_balance < 0 ? "negative" : "positive"}">${money.format(scorecard.global_balance)}</strong><small>At time of save</small></article></div>
+            <div class="report-category-totals"><div class="summary-section-label">Spending by category</div>${categoryTotals}</div>
+            <div class="report-summary-insights"><article><i class="bi bi-arrow-up-right-circle"></i><div><span>Largest expense</span><strong>${largestExpense ? `${escapeHtml(largestExpense.description)} · ${money.format(largestExpense.amount)}` : "No expenses"}</strong><small>${largestExpense ? escapeHtml(largestExpense.category_label) : ""}</small></div></article><article><i class="bi bi-pie-chart"></i><div><span>Largest category</span><strong>${largestCategory ? escapeHtml(largestCategory.label) : "No expenses"}</strong><small>${largestCategory ? money.format(largestCategory.total) : ""}</small></div></article><article><i class="bi bi-receipt"></i><div><span>Total expenses</span><strong>${scorecard.summary.expense_count}</strong><small>Saved charges</small></div></article><article><i class="bi bi-arrow-repeat"></i><div><span>Recurring expenses</span><strong>${scorecard.summary.recurring_count}</strong><small>${scorecard.summary.recurring_percent.toFixed(1)}% of spending</small></div></article></div>
+        </section>
         <div class="card mb-3 scorecard-editor-card">
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -1117,10 +1124,11 @@ function renderScorecardDetails(scorecard) {
 
     scorecard.categories.forEach((category) => {
         const section = document.createElement("div");
-        section.className = "card category-summary mb-3";
+        section.className = "card category-summary report-category-collapse mb-3";
         section.style.setProperty("--category-color", category.color);
+        const collapseId = `report-category-${scorecard.id}-${category.id}`;
         const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? recurrenceLabel(expense) : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
-        section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
+        section.innerHTML = `<button class="report-category-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="true"><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><span><strong>${category.label}</strong><small>${category.count} charge${category.count === 1 ? "" : "s"}</small></span><b>${money.format(category.total)}</b><i class="bi bi-chevron-down category-chevron"></i></button><div class="collapse show" id="${collapseId}"><div class="report-category-body">${rows}</div></div>`;
         section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
         section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
         details.appendChild(section);

@@ -309,6 +309,16 @@ def api_export_scorecard_csv(id):
     writer.writerow(["Total Income", scorecard["income"]])
     writer.writerow(["Total Expenses", scorecard["total_spending"]])
     writer.writerow(["Surplus / Deficit", scorecard["surplus"]])
+    writer.writerow(["Global Surplus / Deficit at Save", scorecard["global_balance"]])
+    for category in scorecard["categories"]:
+        writer.writerow([f"{category['label']} Spending", category["total"]])
+    largest = scorecard["summary"]["largest_expense"]
+    writer.writerow(["Largest Expense", largest["description"] if largest else "", largest["amount"] if largest else "", largest["category_label"] if largest else ""])
+    largest_category = scorecard["summary"]["largest_category"]
+    writer.writerow(["Largest Spending Category", largest_category["label"] if largest_category else "", largest_category["total"] if largest_category else ""])
+    writer.writerow(["Total Expense Count", scorecard["summary"]["expense_count"]])
+    writer.writerow(["Total Recurring Count", scorecard["summary"]["recurring_count"]])
+    writer.writerow(["Percent of Spending Recurring", f"{scorecard['summary']['recurring_percent']:.2f}%"])
     writer.writerow([])
     writer.writerow(["Category", "Description", "Amount", "Recurring", "Recurrence Interval", "Recurrence Unit"])
 

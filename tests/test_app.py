@@ -305,6 +305,14 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     rent = next(expense for expense in saved["expenses"] if expense["description"] == "Rent")
     assert rent["recurrence_interval"] == 3
     assert rent["recurrence_unit"] == "month"
+    assert saved["global_balance"] == 850
+    assert saved["summary"]["expense_count"] == 2
+    assert saved["summary"]["recurring_count"] == 1
+    assert saved["summary"]["recurring_percent"] == 1000 / 1150 * 100
+    assert saved["summary"]["largest_expense"]["description"] == "Rent"
+    assert saved["summary"]["largest_expense"]["category_label"] == "Fixed Costs"
+    assert saved["summary"]["largest_category"]["label"] == "Fixed Costs"
+    assert saved["summary"]["category_spending"]["guilt_free"] == 150
 
 
 def test_scorecard_requires_name_and_valid_date_range(tmp_path, monkeypatch):
@@ -429,6 +437,11 @@ def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypat
     assert "attachment" in response.headers["Content-Disposition"]
     csv_text = response.data.decode()
     assert "Scorecard,July 2026" in csv_text
+    assert "Global Surplus / Deficit at Save,-1000.0" in csv_text
+    assert "Largest Expense,Rent,1000.0,Fixed Costs" in csv_text
+    assert "Total Expense Count,1" in csv_text
+    assert "Total Recurring Count,1" in csv_text
+    assert "Percent of Spending Recurring,100.00%" in csv_text
     assert "Fixed Costs,Rent,1000.0,Yes" in csv_text
 
 
