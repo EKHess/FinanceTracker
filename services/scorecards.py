@@ -2,6 +2,7 @@ from config import CATEGORY_CONFIG
 from database import get_connection
 from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
+from services.global_balance import get_global_balance
 
 
 def _scorecard_expenses(scorecard_id):
@@ -47,10 +48,25 @@ def _categories_from_expenses(expenses):
 def _serialize_scorecard(row, include_expenses=False):
     scorecard = dict(row)
     scorecard["total_spending"] = float(scorecard["total_spending"])
+    scorecard["income"] = float(scorecard.get("income") or 0)
+    scorecard["surplus"] = scorecard["income"] - scorecard["total_spending"]
+    scorecard["global_balance"] = float(scorecard.get("global_balance") or 0)
     if include_expenses:
         expenses = _scorecard_expenses(scorecard["id"])
         scorecard["expenses"] = expenses
         scorecard["categories"] = _categories_from_expenses(expenses)
+        category_with_most = max(scorecard["categories"], key=lambda category: category["total"], default=None)
+        largest_expense = max(expenses, key=lambda expense: float(expense["amount"]), default=None)
+        recurring = [expense for expense in expenses if expense["recurring"]]
+        recurring_spending = sum(float(expense["amount"]) for expense in recurring)
+        scorecard["summary"] = {
+            "category_spending": {category["id"]: category["total"] for category in scorecard["categories"]},
+            "largest_expense": ({**largest_expense, "category_label": CATEGORY_CONFIG[largest_expense["category"]]["label"]} if largest_expense else None),
+            "largest_category": ({"id": category_with_most["id"], "label": category_with_most["label"], "total": category_with_most["total"]} if category_with_most else None),
+            "expense_count": len(expenses),
+            "recurring_count": len(recurring),
+            "recurring_percent": (recurring_spending / scorecard["total_spending"] * 100 if scorecard["total_spending"] else 0),
+        }
     return scorecard
 
 
@@ -91,7 +107,7 @@ def list_scorecards():
     rows = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
         FROM scorecards
         ORDER BY created_at DESC, id DESC
         """
@@ -100,12 +116,54 @@ def list_scorecards():
     return [_serialize_scorecard(row) for row in rows]
 
 
+def get_year_to_date_summary(year):
+    """Aggregate saved report income and spending for a calendar year."""
+    try:
+        year = int(year)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Year must be a number") from exc
+    if year < 1 or year > 9999:
+        raise ValueError("Year is out of range")
+
+    start_date = f"{year:04d}-01-01"
+    end_date = f"{year:04d}-12-31"
+    conn = get_connection()
+    totals = conn.execute(
+        """
+        SELECT COALESCE(SUM(income), 0) AS income,
+               COALESCE(SUM(total_spending), 0) AS spending
+        FROM scorecards
+        WHERE start_date BETWEEN ? AND ?
+        """,
+        (start_date, end_date),
+    ).fetchone()
+    saved_and_invested = conn.execute(
+        """
+        SELECT COALESCE(SUM(expense.amount), 0)
+        FROM scorecard_expenses AS expense
+        JOIN scorecards AS scorecard ON scorecard.id = expense.scorecard_id
+        WHERE scorecard.start_date BETWEEN ? AND ?
+          AND expense.category IN ('savings', 'investments')
+        """,
+        (start_date, end_date),
+    ).fetchone()[0]
+    conn.close()
+    spending = float(totals["spending"])
+    return {
+        "year": year,
+        "total_income": float(totals["income"]),
+        "total_spending": spending,
+        "saved_and_invested": float(saved_and_invested),
+        "percent_saved_invested": float(saved_and_invested) / spending * 100 if spending else 0,
+    }
+
+
 def get_scorecard(scorecard_id):
     conn = get_connection()
     row = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
         FROM scorecards
         WHERE id = ?
         """,
@@ -127,17 +185,18 @@ def create_scorecard(month_id, name, start_date, end_date):
         raise ValueError("Start date must be before end date")
 
     snapshot = dashboard_summary(month_id)
+    global_balance = get_global_balance(month_id)["balance"]
     expenses = snapshot["expenses"]
 
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present, global_balance)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
         """,
         (name, start_date, end_date, snapshot["summary"]["spending"], snapshot["summary"]["income"],
-         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"]),
+         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"], global_balance),
     )
     scorecard_id = cursor.lastrowid
 
@@ -185,6 +244,17 @@ def delete_scorecard(scorecard_id):
     conn.commit()
     conn.close()
     return True
+
+
+def delete_all_scorecards():
+    """Delete every saved report and its snapshot expenses atomically."""
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM scorecards").fetchone()[0]
+    conn.execute("DELETE FROM scorecard_expenses")
+    conn.execute("DELETE FROM scorecards")
+    conn.commit()
+    conn.close()
+    return int(count)
 
 
 def add_scorecard_expense(scorecard_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):

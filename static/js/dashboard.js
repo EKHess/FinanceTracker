@@ -9,6 +9,7 @@ let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
 let visibleRecurringExpenseLimit = 5;
 let workspaceSchedule = null;
+let financialReports = [];
 
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
@@ -30,6 +31,7 @@ function navigateTo(page) {
     if (page === "income" || page === "settings") initializeIncomeEditor();
     if (page === "settings") loadWorkspaceSchedule();
     if (page === "recurring") renderRecurringExpensesPage();
+    if (page === "reports") refreshScorecardList();
 }
 
 function openWorkspaceSettings() {
@@ -953,25 +955,38 @@ async function saveScorecard() {
 }
 
 async function showScorecards() {
-    const modal = new bootstrap.Modal(document.getElementById("scorecardsModal"));
-    modal.show();
-    await refreshScorecardList();
+    navigateTo("reports");
 }
 
 function renderScorecardList(scorecards) {
-    const list = document.getElementById("scorecardList");
-    list.innerHTML = "";
-    if (!scorecards.length) {
-        list.innerHTML = '<div class="text-muted">No scorecards saved yet.</div>';
-        return;
-    }
-    scorecards.forEach((scorecard) => {
-        const button = document.createElement("button");
-        button.className = "list-group-item list-group-item-action";
-        button.innerHTML = `<div class="fw-bold">${escapeHtml(scorecard.name)}</div><small>${scorecard.start_date} – ${scorecard.end_date}</small><div>${money.format(scorecard.total_spending)}</div>`;
-        button.addEventListener("click", () => loadScorecardDetails(scorecard.id));
-        list.appendChild(button);
-    });
+    const body = document.getElementById("financialReportsTable");
+    if (!body) return;
+    body.innerHTML = scorecards.length ? scorecards.map((report) => {
+        const surplus = Number(report.surplus);
+        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="danger" type="button" onclick="deleteScorecard(${report.id})" aria-label="Delete ${escapeHtml(report.name)}" title="Delete report"><i class="bi bi-trash"></i></button></div></td></tr>`;
+    }).join("") : '<tr><td colspan="6" class="reports-empty">No financial reports match this date range.</td></tr>';
+    const summary = document.getElementById("reportFilterSummary");
+    if (summary) summary.textContent = `${scorecards.length} of ${financialReports.length} report${financialReports.length === 1 ? "" : "s"}`;
+}
+
+function filterFinancialReports() {
+    const start = document.getElementById("reportStartFilter").value;
+    const end = document.getElementById("reportEndFilter").value;
+    renderScorecardList(financialReports.filter((report) => (!start || report.start_date >= start) && (!end || report.end_date <= end)));
+}
+
+function clearReportFilters() {
+    document.getElementById("reportStartFilter").value = "";
+    document.getElementById("reportEndFilter").value = "";
+    filterFinancialReports();
+}
+
+async function openFinancialReport(id) {
+    const details = document.getElementById("scorecardDetails");
+    details.className = "scorecard-details text-muted";
+    details.textContent = "Loading financial report…";
+    new bootstrap.Modal(document.getElementById("scorecardsModal")).show();
+    await loadScorecardDetails(id);
 }
 
 async function loadScorecardDetails(id) {
@@ -1031,19 +1046,57 @@ async function deleteScorecardExpense(expenseId) {
 
 async function deleteActiveScorecard() {
     if (!activeScorecardId) return;
+    await deleteScorecard(activeScorecardId);
+}
+
+async function deleteScorecard(scorecardId) {
     if (!confirm("Delete this scorecard? This action cannot be undone.")) return;
-    await api(`/api/scorecards/${activeScorecardId}`, { method: "DELETE" });
+    await api(`/api/scorecards/${scorecardId}`, { method: "DELETE" });
+    if (activeScorecardId === scorecardId) {
+        activeScorecardId = null;
+        document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
+        document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+        bootstrap.Modal.getInstance(document.getElementById("scorecardsModal"))?.hide();
+    }
+    await refreshScorecardList();
+    await loadDashboard();
+    await initializeWorkspaceNavigation(true);
+}
+
+async function deleteAllScorecards() {
+    if (!financialReports.length) return;
+    if (!confirm("Delete all reports? This action cannot be undone.")) return;
+    await api("/api/scorecards", { method: "DELETE" });
     activeScorecardId = null;
     document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
     document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+    bootstrap.Modal.getInstance(document.getElementById("scorecardsModal"))?.hide();
     await refreshScorecardList();
     await loadDashboard();
     await initializeWorkspaceNavigation(true);
 }
 
 async function refreshScorecardList() {
-    const scorecards = await api("/api/scorecards");
-    renderScorecardList(scorecards);
+    const year = new Date().getFullYear();
+    const [reports, yearToDate, globalBalance] = await Promise.all([
+        api("/api/scorecards"),
+        api(`/api/scorecards/year-to-date?year=${year}`),
+        api("/api/global-balance"),
+    ]);
+    financialReports = reports;
+    filterFinancialReports();
+    renderYearToDate(yearToDate, globalBalance);
+}
+
+function renderYearToDate(summary, globalBalance) {
+    document.getElementById("yearToDateYear").textContent = summary.year;
+    document.getElementById("ytdIncome").textContent = money.format(summary.total_income);
+    document.getElementById("ytdSpending").textContent = money.format(summary.total_spending);
+    const balance = document.getElementById("ytdGlobalBalance");
+    balance.textContent = money.format(globalBalance.balance);
+    balance.classList.toggle("negative", globalBalance.balance < 0);
+    balance.classList.toggle("positive", globalBalance.balance >= 0);
+    document.getElementById("ytdSavedInvested").textContent = `${summary.percent_saved_invested.toFixed(1)}%`;
 }
 
 function renderScorecardDetails(scorecard) {
@@ -1051,17 +1104,24 @@ function renderScorecardDetails(scorecard) {
     editingScorecardExpenseId = null;
     const details = document.getElementById("scorecardDetails");
     details.classList.remove("text-muted");
+    const largestExpense = scorecard.summary.largest_expense;
+    const largestCategory = scorecard.summary.largest_category;
+    const categoryTotals = scorecard.categories.map((category) => `<div class="report-category-total" style="--category-color:${category.color}"><span>${escapeHtml(category.label)}</span><strong>${money.format(category.total)}</strong></div>`).join("");
     details.innerHTML = `
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
             <div>
                 <h4>${escapeHtml(scorecard.name)}</h4>
                 <div class="text-muted">${scorecard.start_date} – ${scorecard.end_date}</div>
             </div>
-            <div class="text-end">
-                <h4>${money.format(scorecard.total_spending)}</h4>
-                <a class="btn btn-sm btn-outline-primary me-1" href="/api/scorecards/${scorecard.id}/export.csv"><i class="bi bi-filetype-csv me-1"></i>Export to CSV</a><button class="btn btn-sm btn-outline-danger" onclick="deleteActiveScorecard()"><i class="bi bi-trash me-1"></i>Delete Scorecard</button>
+            <div class="report-detail-actions">
+                <a class="report-icon-button" href="/api/scorecards/${scorecard.id}/export.csv" aria-label="Download report as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="report-icon-button danger" onclick="deleteActiveScorecard()" aria-label="Delete report" title="Delete report"><i class="bi bi-trash"></i></button>
             </div>
         </div>
+        <section class="report-summary" aria-label="Financial report summary">
+            <div class="report-summary-primary"><article><span>Total spending</span><strong>${money.format(scorecard.total_spending)}</strong></article><article><span>Surplus / Deficit</span><strong class="${scorecard.surplus < 0 ? "negative" : "positive"}">${money.format(scorecard.surplus)}</strong></article><article><span>Global Surplus / Deficit</span><strong class="${scorecard.global_balance < 0 ? "negative" : "positive"}">${money.format(scorecard.global_balance)}</strong><small>At time of save</small></article></div>
+            <div class="report-category-totals"><div class="summary-section-label">Spending by category</div>${categoryTotals}</div>
+            <div class="report-summary-insights"><article><i class="bi bi-arrow-up-right-circle"></i><div><span>Largest expense</span><strong>${largestExpense ? `${escapeHtml(largestExpense.description)} · ${money.format(largestExpense.amount)}` : "No expenses"}</strong><small>${largestExpense ? escapeHtml(largestExpense.category_label) : ""}</small></div></article><article><i class="bi bi-pie-chart"></i><div><span>Largest category</span><strong>${largestCategory ? escapeHtml(largestCategory.label) : "No expenses"}</strong><small>${largestCategory ? money.format(largestCategory.total) : ""}</small></div></article><article><i class="bi bi-receipt"></i><div><span>Total expenses</span><strong>${scorecard.summary.expense_count}</strong><small>Saved charges</small></div></article><article><i class="bi bi-arrow-repeat"></i><div><span>Recurring expenses</span><strong>${scorecard.summary.recurring_count}</strong><small>${scorecard.summary.recurring_percent.toFixed(1)}% of spending</small></div></article></div>
+        </section>
         <div class="card mb-3 scorecard-editor-card">
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -1102,10 +1162,11 @@ function renderScorecardDetails(scorecard) {
 
     scorecard.categories.forEach((category) => {
         const section = document.createElement("div");
-        section.className = "card category-summary mb-3";
+        section.className = "card category-summary report-category-collapse mb-3";
         section.style.setProperty("--category-color", category.color);
+        const collapseId = `report-category-${scorecard.id}-${category.id}`;
         const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? recurrenceLabel(expense) : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
-        section.innerHTML = `<div class="card-body"><div class="d-flex justify-content-between"><h5>${category.label}</h5><strong>${money.format(category.total)}</strong></div><div class="small text-muted mb-2">${category.count} charge${category.count === 1 ? "" : "s"}</div>${rows}</div>`;
+        section.innerHTML = `<button class="report-category-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false"><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><span><strong>${category.label}</strong><small>${category.count} charge${category.count === 1 ? "" : "s"}</small></span><b>${money.format(category.total)}</b><i class="bi bi-chevron-down category-chevron"></i></button><div class="collapse" id="${collapseId}"><div class="report-category-body">${rows}</div></div>`;
         section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
         section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
         details.appendChild(section);

@@ -17,7 +17,7 @@
         <button data-page="budget" class="active" onclick="navigateTo('budget')"><i class="bi bi-calendar2-week"></i>Monthly Budget</button>
         <button data-page="cashflow" onclick="navigateTo('cashflow')"><i class="bi bi-pie-chart"></i>Cash Flow Dashboard</button>
         <button data-page="progress" onclick="navigateTo('progress')"><i class="bi bi-graph-up-arrow"></i>Progress Dashboard</button>
-        <button onclick="showScorecards()"><i class="bi bi-file-earmark-bar-graph"></i>Financial Reports</button>
+        <button data-page="reports" onclick="showScorecards()"><i class="bi bi-file-earmark-bar-graph"></i>Financial Reports</button>
     </nav>
     <div class="nav-label">Manage</div>
     <nav class="app-nav">
@@ -62,6 +62,33 @@
             <form onsubmit="drawGlobalSurplus(event)"><input id="globalDrawDescription" class="form-control" placeholder="What is this for?" required><select id="globalDrawCategory" class="form-select" required><option value="">Choose category</option>{% for category_id, category in categories.items() %}<option value="{{ category_id }}">{{ category.label }}</option>{% endfor %}</select><div class="input-group"><span class="input-group-text">$</span><input id="globalDrawAmount" class="form-control" type="number" min="0.01" step="0.01" required aria-label="Surplus draw amount"></div><button class="btn btn-success" type="submit"><i class="bi bi-arrow-down-right me-1"></i>Allocate</button></form>
         </div>
         <div id="globalBalanceError" class="global-balance-error d-none"></div>
+    </section>
+</section>
+<section class="app-page" id="page-reports">
+    <header class="page-header reports-header"><div><h1>Financial Reports</h1><p>View your financial reports and historical snapshots.</p></div><a href="/api/scorecards/export.pdf" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>Export PDF</a></header>
+    <div class="panel reports-panel">
+        <div class="reports-table-header"><h2>Saved Reports</h2><button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteAllScorecards()"><i class="bi bi-trash me-1"></i>Delete All Reports</button></div>
+        <div class="report-filters" aria-label="Filter reports by date range">
+            <div><label class="form-label" for="reportStartFilter">Start date</label><input id="reportStartFilter" class="form-control" type="date" onchange="filterFinancialReports()"></div>
+            <div><label class="form-label" for="reportEndFilter">End date</label><input id="reportEndFilter" class="form-control" type="date" onchange="filterFinancialReports()"></div>
+            <button class="btn btn-outline-secondary" type="button" onclick="clearReportFilters()">Clear filters</button>
+        </div>
+        <div class="reports-table-wrap">
+            <table class="reports-table">
+                <thead><tr><th>Start Date</th><th>End Date</th><th>Total Income</th><th>Total Expenses</th><th>Surplus / Deficit</th><th>Actions</th></tr></thead>
+                <tbody id="financialReportsTable"><tr><td colspan="6" class="reports-empty">Loading financial reports…</td></tr></tbody>
+            </table>
+        </div>
+        <div id="reportFilterSummary" class="report-filter-summary" aria-live="polite"></div>
+    </div>
+    <section class="ytd-section" aria-labelledby="yearToDateTitle">
+        <h2 id="yearToDateTitle">Year to Date (<span id="yearToDateYear"></span>)</h2>
+        <div class="ytd-grid">
+            <article class="card ytd-card"><span class="ytd-icon income"><i class="bi bi-cash-stack"></i></span><div><small>Total Income</small><strong id="ytdIncome">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon spending"><i class="bi bi-receipt"></i></span><div><small>Total Spending</small><strong id="ytdSpending">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon balance"><i class="bi bi-graph-up-arrow"></i></span><div><small>Global Surplus / Deficit</small><strong id="ytdGlobalBalance">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon percent"><i class="bi bi-pie-chart"></i></span><div><small>Percent Saved / Invested</small><strong id="ytdSavedInvested">0.0%</strong></div></article>
+        </div>
     </section>
 </section>
 <section class="app-page" id="page-income">
@@ -223,18 +250,11 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Saved Scorecards</h5>
+                <h5 class="modal-title">Financial Report</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-lg-4">
-                        <div id="scorecardList" class="list-group"></div>
-                    </div>
-                    <div class="col-lg-8">
-                        <div id="scorecardDetails" class="scorecard-details text-muted">Select a scorecard to view totals and detailed charges.</div>
-                    </div>
-                </div>
+                <div id="scorecardDetails" class="scorecard-details text-muted">Loading financial report…</div>
             </div>
         </div>
     </div>

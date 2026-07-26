@@ -1,4 +1,5 @@
 import importlib
+import re
 from datetime import datetime
 
 
@@ -288,6 +289,7 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     assert scorecard["name"] == "July 2026"
     assert scorecard["total_spending"] == 1150
     assert scorecard["income"] == 2000
+    assert scorecard["surplus"] == 850
     assert scorecard["income_period_duration"] == 1
     assert scorecard["income_period_unit"] == "month"
     assert scorecard["income_snapshot_present"] == 1
@@ -304,6 +306,14 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     rent = next(expense for expense in saved["expenses"] if expense["description"] == "Rent")
     assert rent["recurrence_interval"] == 3
     assert rent["recurrence_unit"] == "month"
+    assert saved["global_balance"] == 850
+    assert saved["summary"]["expense_count"] == 2
+    assert saved["summary"]["recurring_count"] == 1
+    assert saved["summary"]["recurring_percent"] == 1000 / 1150 * 100
+    assert saved["summary"]["largest_expense"]["description"] == "Rent"
+    assert saved["summary"]["largest_expense"]["category_label"] == "Fixed Costs"
+    assert saved["summary"]["largest_category"]["label"] == "Fixed Costs"
+    assert saved["summary"]["category_spending"]["guilt_free"] == 150
 
 
 def test_scorecard_requires_name_and_valid_date_range(tmp_path, monkeypatch):
@@ -409,6 +419,26 @@ def test_delete_scorecard_removes_it_and_its_saved_charges(tmp_path, monkeypatch
     assert client.get("/api/scorecards").get_json() == []
 
 
+def test_delete_all_scorecards_removes_every_report_and_saved_charge(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    _create_scorecard_with_one_charge(client)
+    _create_scorecard_with_one_charge(client)
+    response = client.delete("/api/scorecards")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True, "deleted": 2}
+    assert client.get("/api/scorecards").get_json() == []
+    conn = database.get_connection()
+    assert conn.execute("SELECT COUNT(*) FROM scorecard_expenses").fetchone()[0] == 0
+    conn.close()
+
+
 def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
@@ -428,7 +458,73 @@ def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypat
     assert "attachment" in response.headers["Content-Disposition"]
     csv_text = response.data.decode()
     assert "Scorecard,July 2026" in csv_text
+    assert "Global Surplus / Deficit at Save,-1000.0" in csv_text
+    assert "Largest Expense,Rent,1000.0,Fixed Costs" in csv_text
+    assert "Total Expense Count,1" in csv_text
+    assert "Total Recurring Count,1" in csv_text
+    assert "Percent of Spending Recurring,100.00%" in csv_text
     assert "Fixed Costs,Rent,1000.0,Yes" in csv_text
+
+
+def test_year_to_date_summary_aggregates_reports_and_saved_invested_spending(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    conn = database.get_connection()
+    first = conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('January', '2026-01-01', '2026-01-31', 600, 1000)"
+    ).lastrowid
+    second = conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('February', '2026-02-01', '2026-02-28', 400, 800)"
+    ).lastrowid
+    conn.executemany(
+        "INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date) VALUES (?, ?, ?, ?, 0, '2026-01-01')",
+        [(first, "Emergency fund", 200, "savings"), (first, "Rent", 400, "fixed"), (second, "Brokerage", 100, "investments"), (second, "Fun", 300, "guilt_free")],
+    )
+    conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('Old report', '2025-12-01', '2025-12-31', 999, 999)"
+    )
+    conn.commit()
+    conn.close()
+
+    response = client.get("/api/scorecards/year-to-date?year=2026")
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "year": 2026,
+        "total_income": 1800.0,
+        "total_spending": 1000.0,
+        "saved_and_invested": 300.0,
+        "percent_saved_invested": 30.0,
+    }
+
+
+def test_all_reports_pdf_export_has_title_and_one_page_per_report(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 2000})
+    first = _create_scorecard_with_one_charge(client)
+    second = client.post("/api/scorecards", json={
+        "name": "August 2026", "start_date": "2026-08-01", "end_date": "2026-08-31",
+    }).get_json()
+    response = client.get("/api/scorecards/export.pdf")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert response.data.startswith(b"%PDF-1.4")
+    assert len(re.findall(rb"/Type /Page\b", response.data)) == 3
+    assert b"Financial Reports" in response.data
+    assert first["start_date"].encode() in response.data
+    assert second["end_date"].encode() in response.data
 
 
 def test_database_export_can_be_imported_to_restore_state(tmp_path, monkeypatch):

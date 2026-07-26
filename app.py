@@ -1,6 +1,6 @@
 import calendar
 import csv
-from io import StringIO
+from io import BytesIO, StringIO
 
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
@@ -11,13 +11,16 @@ from services.expenses import add_expense, delete_expense, get_expenses, update_
 from services.finance import dashboard_summary
 from services.global_balance import draw_from_surplus, get_global_balance, save_deficit_pledge
 from services.months import get_category_totals, get_month_summary, update_income
+from services.pdf_reports import build_financial_reports_pdf
 from services.income import get_income_profile, get_tax_rulesets, save_income_profile
 from services.scorecards import (
     add_scorecard_expense,
     create_scorecard,
     delete_scorecard,
+    delete_all_scorecards,
     delete_scorecard_expense,
     get_scorecard,
+    get_year_to_date_summary,
     list_scorecards,
     update_scorecard_expense,
 )
@@ -204,6 +207,32 @@ def api_scorecards():
     return jsonify(list_scorecards())
 
 
+@app.route("/api/scorecards", methods=["DELETE"])
+def api_delete_all_scorecards():
+    return jsonify({"success": True, "deleted": delete_all_scorecards()})
+
+
+@app.route("/api/scorecards/year-to-date")
+def api_scorecards_year_to_date():
+    try:
+        return jsonify(get_year_to_date_summary(request.args.get("year")))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/scorecards/export.pdf")
+def api_export_scorecards_pdf():
+    reports = [get_scorecard(report["id"]) for report in reversed(list_scorecards())]
+    if not reports:
+        return jsonify({"error": "No financial reports to export"}), 404
+    return send_file(
+        BytesIO(build_financial_reports_pdf(reports)),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name="financial-reports.pdf",
+    )
+
+
 @app.route("/api/scorecards/<int:id>")
 def api_scorecard(id):
     scorecard = get_scorecard(id)
@@ -306,7 +335,19 @@ def api_export_scorecard_csv(id):
     writer.writerow(["Scorecard", scorecard["name"]])
     writer.writerow(["Start Date", scorecard["start_date"]])
     writer.writerow(["End Date", scorecard["end_date"]])
-    writer.writerow(["Total Spending", scorecard["total_spending"]])
+    writer.writerow(["Total Income", scorecard["income"]])
+    writer.writerow(["Total Expenses", scorecard["total_spending"]])
+    writer.writerow(["Surplus / Deficit", scorecard["surplus"]])
+    writer.writerow(["Global Surplus / Deficit at Save", scorecard["global_balance"]])
+    for category in scorecard["categories"]:
+        writer.writerow([f"{category['label']} Spending", category["total"]])
+    largest = scorecard["summary"]["largest_expense"]
+    writer.writerow(["Largest Expense", largest["description"] if largest else "", largest["amount"] if largest else "", largest["category_label"] if largest else ""])
+    largest_category = scorecard["summary"]["largest_category"]
+    writer.writerow(["Largest Spending Category", largest_category["label"] if largest_category else "", largest_category["total"] if largest_category else ""])
+    writer.writerow(["Total Expense Count", scorecard["summary"]["expense_count"]])
+    writer.writerow(["Total Recurring Count", scorecard["summary"]["recurring_count"]])
+    writer.writerow(["Percent of Spending Recurring", f"{scorecard['summary']['recurring_percent']:.2f}%"])
     writer.writerow([])
     writer.writerow(["Category", "Description", "Amount", "Recurring", "Recurrence Interval", "Recurrence Unit"])
 
