@@ -67,6 +67,7 @@
 <section class="app-page" id="page-reports">
     <header class="page-header reports-header"><div><h1>Financial Reports</h1><p>View your financial reports and historical snapshots.</p></div><button type="button" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>Export PDF</button></header>
     <div class="panel reports-panel">
+        <div class="reports-table-header"><h2>Saved Reports</h2><button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteAllScorecards()"><i class="bi bi-trash me-1"></i>Delete All Reports</button></div>
         <div class="report-filters" aria-label="Filter reports by date range">
             <div><label class="form-label" for="reportStartFilter">Start date</label><input id="reportStartFilter" class="form-control" type="date" onchange="filterFinancialReports()"></div>
             <div><label class="form-label" for="reportEndFilter">End date</label><input id="reportEndFilter" class="form-control" type="date" onchange="filterFinancialReports()"></div>

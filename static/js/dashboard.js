@@ -1063,6 +1063,19 @@ async function deleteScorecard(scorecardId) {
     await initializeWorkspaceNavigation(true);
 }
 
+async function deleteAllScorecards() {
+    if (!financialReports.length) return;
+    if (!confirm("Delete all reports? This action cannot be undone.")) return;
+    await api("/api/scorecards", { method: "DELETE" });
+    activeScorecardId = null;
+    document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
+    document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+    bootstrap.Modal.getInstance(document.getElementById("scorecardsModal"))?.hide();
+    await refreshScorecardList();
+    await loadDashboard();
+    await initializeWorkspaceNavigation(true);
+}
+
 async function refreshScorecardList() {
     const year = new Date().getFullYear();
     const [reports, yearToDate, globalBalance] = await Promise.all([

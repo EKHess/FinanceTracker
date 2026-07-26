@@ -246,6 +246,17 @@ def delete_scorecard(scorecard_id):
     return True
 
 
+def delete_all_scorecards():
+    """Delete every saved report and its snapshot expenses atomically."""
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM scorecards").fetchone()[0]
+    conn.execute("DELETE FROM scorecard_expenses")
+    conn.execute("DELETE FROM scorecards")
+    conn.commit()
+    conn.close()
+    return int(count)
+
+
 def add_scorecard_expense(scorecard_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     description, amount, category = _validate_expense(description, amount, category)
     recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)

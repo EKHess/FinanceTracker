@@ -16,6 +16,7 @@ from services.scorecards import (
     add_scorecard_expense,
     create_scorecard,
     delete_scorecard,
+    delete_all_scorecards,
     delete_scorecard_expense,
     get_scorecard,
     get_year_to_date_summary,
@@ -203,6 +204,11 @@ def api_delete_expense(id):
 @app.route("/api/scorecards")
 def api_scorecards():
     return jsonify(list_scorecards())
+
+
+@app.route("/api/scorecards", methods=["DELETE"])
+def api_delete_all_scorecards():
+    return jsonify({"success": True, "deleted": delete_all_scorecards()})
 
 
 @app.route("/api/scorecards/year-to-date")

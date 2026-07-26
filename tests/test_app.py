@@ -418,6 +418,26 @@ def test_delete_scorecard_removes_it_and_its_saved_charges(tmp_path, monkeypatch
     assert client.get("/api/scorecards").get_json() == []
 
 
+def test_delete_all_scorecards_removes_every_report_and_saved_charge(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    _create_scorecard_with_one_charge(client)
+    _create_scorecard_with_one_charge(client)
+    response = client.delete("/api/scorecards")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"success": True, "deleted": 2}
+    assert client.get("/api/scorecards").get_json() == []
+    conn = database.get_connection()
+    assert conn.execute("SELECT COUNT(*) FROM scorecard_expenses").fetchone()[0] == 0
+    conn.close()
+
+
 def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
