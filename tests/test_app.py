@@ -445,6 +445,42 @@ def test_scorecard_csv_export_downloads_saved_charge_details(tmp_path, monkeypat
     assert "Fixed Costs,Rent,1000.0,Yes" in csv_text
 
 
+def test_year_to_date_summary_aggregates_reports_and_saved_invested_spending(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    conn = database.get_connection()
+    first = conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('January', '2026-01-01', '2026-01-31', 600, 1000)"
+    ).lastrowid
+    second = conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('February', '2026-02-01', '2026-02-28', 400, 800)"
+    ).lastrowid
+    conn.executemany(
+        "INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date) VALUES (?, ?, ?, ?, 0, '2026-01-01')",
+        [(first, "Emergency fund", 200, "savings"), (first, "Rent", 400, "fixed"), (second, "Brokerage", 100, "investments"), (second, "Fun", 300, "guilt_free")],
+    )
+    conn.execute(
+        "INSERT INTO scorecards (name, start_date, end_date, total_spending, income) VALUES ('Old report', '2025-12-01', '2025-12-31', 999, 999)"
+    )
+    conn.commit()
+    conn.close()
+
+    response = client.get("/api/scorecards/year-to-date?year=2026")
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "year": 2026,
+        "total_income": 1800.0,
+        "total_spending": 1000.0,
+        "saved_and_invested": 300.0,
+        "percent_saved_invested": 30.0,
+    }
+
+
 def test_database_export_can_be_imported_to_restore_state(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

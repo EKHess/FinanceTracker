@@ -116,6 +116,48 @@ def list_scorecards():
     return [_serialize_scorecard(row) for row in rows]
 
 
+def get_year_to_date_summary(year):
+    """Aggregate saved report income and spending for a calendar year."""
+    try:
+        year = int(year)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Year must be a number") from exc
+    if year < 1 or year > 9999:
+        raise ValueError("Year is out of range")
+
+    start_date = f"{year:04d}-01-01"
+    end_date = f"{year:04d}-12-31"
+    conn = get_connection()
+    totals = conn.execute(
+        """
+        SELECT COALESCE(SUM(income), 0) AS income,
+               COALESCE(SUM(total_spending), 0) AS spending
+        FROM scorecards
+        WHERE start_date BETWEEN ? AND ?
+        """,
+        (start_date, end_date),
+    ).fetchone()
+    saved_and_invested = conn.execute(
+        """
+        SELECT COALESCE(SUM(expense.amount), 0)
+        FROM scorecard_expenses AS expense
+        JOIN scorecards AS scorecard ON scorecard.id = expense.scorecard_id
+        WHERE scorecard.start_date BETWEEN ? AND ?
+          AND expense.category IN ('savings', 'investments')
+        """,
+        (start_date, end_date),
+    ).fetchone()[0]
+    conn.close()
+    spending = float(totals["spending"])
+    return {
+        "year": year,
+        "total_income": float(totals["income"]),
+        "total_spending": spending,
+        "saved_and_invested": float(saved_and_invested),
+        "percent_saved_invested": float(saved_and_invested) / spending * 100 if spending else 0,
+    }
+
+
 def get_scorecard(scorecard_id):
     conn = get_connection()
     row = conn.execute(

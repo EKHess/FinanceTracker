@@ -80,6 +80,15 @@
         </div>
         <div id="reportFilterSummary" class="report-filter-summary" aria-live="polite"></div>
     </div>
+    <section class="ytd-section" aria-labelledby="yearToDateTitle">
+        <h2 id="yearToDateTitle">Year to Date (<span id="yearToDateYear"></span>)</h2>
+        <div class="ytd-grid">
+            <article class="card ytd-card"><span class="ytd-icon income"><i class="bi bi-cash-stack"></i></span><div><small>Total Income</small><strong id="ytdIncome">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon spending"><i class="bi bi-receipt"></i></span><div><small>Total Spending</small><strong id="ytdSpending">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon balance"><i class="bi bi-graph-up-arrow"></i></span><div><small>Global Surplus / Deficit</small><strong id="ytdGlobalBalance">$0.00</strong></div></article>
+            <article class="card ytd-card"><span class="ytd-icon percent"><i class="bi bi-pie-chart"></i></span><div><small>Percent Saved / Invested</small><strong id="ytdSavedInvested">0.0%</strong></div></article>
+        </div>
+    </section>
 </section>
 <section class="app-page" id="page-income">
 <header class="page-header"><div><h1>Income Sources</h1><p>Track income sources and calculate your take-home pay.</p></div><button class="btn btn-success" onclick="saveIncomeProfile()"><i class="bi bi-check2 me-1"></i>Save Income</button></header>

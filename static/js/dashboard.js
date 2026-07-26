@@ -1057,8 +1057,26 @@ async function deleteActiveScorecard() {
 }
 
 async function refreshScorecardList() {
-    financialReports = await api("/api/scorecards");
+    const year = new Date().getFullYear();
+    const [reports, yearToDate, globalBalance] = await Promise.all([
+        api("/api/scorecards"),
+        api(`/api/scorecards/year-to-date?year=${year}`),
+        api("/api/global-balance"),
+    ]);
+    financialReports = reports;
     filterFinancialReports();
+    renderYearToDate(yearToDate, globalBalance);
+}
+
+function renderYearToDate(summary, globalBalance) {
+    document.getElementById("yearToDateYear").textContent = summary.year;
+    document.getElementById("ytdIncome").textContent = money.format(summary.total_income);
+    document.getElementById("ytdSpending").textContent = money.format(summary.total_spending);
+    const balance = document.getElementById("ytdGlobalBalance");
+    balance.textContent = money.format(globalBalance.balance);
+    balance.classList.toggle("negative", globalBalance.balance < 0);
+    balance.classList.toggle("positive", globalBalance.balance >= 0);
+    document.getElementById("ytdSavedInvested").textContent = `${summary.percent_saved_invested.toFixed(1)}%`;
 }
 
 function renderScorecardDetails(scorecard) {

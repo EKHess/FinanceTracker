@@ -18,6 +18,7 @@ from services.scorecards import (
     delete_scorecard,
     delete_scorecard_expense,
     get_scorecard,
+    get_year_to_date_summary,
     list_scorecards,
     update_scorecard_expense,
 )
@@ -202,6 +203,14 @@ def api_delete_expense(id):
 @app.route("/api/scorecards")
 def api_scorecards():
     return jsonify(list_scorecards())
+
+
+@app.route("/api/scorecards/year-to-date")
+def api_scorecards_year_to_date():
+    try:
+        return jsonify(get_year_to_date_summary(request.args.get("year")))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @app.route("/api/scorecards/<int:id>")
