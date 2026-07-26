@@ -963,7 +963,7 @@ function renderScorecardList(scorecards) {
     if (!body) return;
     body.innerHTML = scorecards.length ? scorecards.map((report) => {
         const surplus = Number(report.surplus);
-        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a></div></td></tr>`;
+        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="danger" type="button" onclick="deleteScorecard(${report.id})" aria-label="Delete ${escapeHtml(report.name)}" title="Delete report"><i class="bi bi-trash"></i></button></div></td></tr>`;
     }).join("") : '<tr><td colspan="6" class="reports-empty">No financial reports match this date range.</td></tr>';
     const summary = document.getElementById("reportFilterSummary");
     if (summary) summary.textContent = `${scorecards.length} of ${financialReports.length} report${financialReports.length === 1 ? "" : "s"}`;
@@ -1046,11 +1046,18 @@ async function deleteScorecardExpense(expenseId) {
 
 async function deleteActiveScorecard() {
     if (!activeScorecardId) return;
+    await deleteScorecard(activeScorecardId);
+}
+
+async function deleteScorecard(scorecardId) {
     if (!confirm("Delete this scorecard? This action cannot be undone.")) return;
-    await api(`/api/scorecards/${activeScorecardId}`, { method: "DELETE" });
-    activeScorecardId = null;
-    document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
-    document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+    await api(`/api/scorecards/${scorecardId}`, { method: "DELETE" });
+    if (activeScorecardId === scorecardId) {
+        activeScorecardId = null;
+        document.getElementById("scorecardDetails").className = "scorecard-details text-muted";
+        document.getElementById("scorecardDetails").textContent = "Select a scorecard to view totals and detailed charges.";
+        bootstrap.Modal.getInstance(document.getElementById("scorecardsModal"))?.hide();
+    }
     await refreshScorecardList();
     await loadDashboard();
     await initializeWorkspaceNavigation(true);
