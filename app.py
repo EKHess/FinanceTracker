@@ -306,7 +306,9 @@ def api_export_scorecard_csv(id):
     writer.writerow(["Scorecard", scorecard["name"]])
     writer.writerow(["Start Date", scorecard["start_date"]])
     writer.writerow(["End Date", scorecard["end_date"]])
-    writer.writerow(["Total Spending", scorecard["total_spending"]])
+    writer.writerow(["Total Income", scorecard["income"]])
+    writer.writerow(["Total Expenses", scorecard["total_spending"]])
+    writer.writerow(["Surplus / Deficit", scorecard["surplus"]])
     writer.writerow([])
     writer.writerow(["Category", "Description", "Amount", "Recurring", "Recurrence Interval", "Recurrence Unit"])
 

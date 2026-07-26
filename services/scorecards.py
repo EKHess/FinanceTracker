@@ -47,6 +47,8 @@ def _categories_from_expenses(expenses):
 def _serialize_scorecard(row, include_expenses=False):
     scorecard = dict(row)
     scorecard["total_spending"] = float(scorecard["total_spending"])
+    scorecard["income"] = float(scorecard.get("income") or 0)
+    scorecard["surplus"] = scorecard["income"] - scorecard["total_spending"]
     if include_expenses:
         expenses = _scorecard_expenses(scorecard["id"])
         scorecard["expenses"] = expenses

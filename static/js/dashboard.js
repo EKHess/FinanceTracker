@@ -9,6 +9,7 @@ let incomeEditorLoaded = false;
 let visibleExpenseLimit = 5;
 let visibleRecurringExpenseLimit = 5;
 let workspaceSchedule = null;
+let financialReports = [];
 
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
@@ -30,6 +31,7 @@ function navigateTo(page) {
     if (page === "income" || page === "settings") initializeIncomeEditor();
     if (page === "settings") loadWorkspaceSchedule();
     if (page === "recurring") renderRecurringExpensesPage();
+    if (page === "reports") refreshScorecardList();
 }
 
 function openWorkspaceSettings() {
@@ -953,25 +955,38 @@ async function saveScorecard() {
 }
 
 async function showScorecards() {
-    const modal = new bootstrap.Modal(document.getElementById("scorecardsModal"));
-    modal.show();
-    await refreshScorecardList();
+    navigateTo("reports");
 }
 
 function renderScorecardList(scorecards) {
-    const list = document.getElementById("scorecardList");
-    list.innerHTML = "";
-    if (!scorecards.length) {
-        list.innerHTML = '<div class="text-muted">No scorecards saved yet.</div>';
-        return;
-    }
-    scorecards.forEach((scorecard) => {
-        const button = document.createElement("button");
-        button.className = "list-group-item list-group-item-action";
-        button.innerHTML = `<div class="fw-bold">${escapeHtml(scorecard.name)}</div><small>${scorecard.start_date} – ${scorecard.end_date}</small><div>${money.format(scorecard.total_spending)}</div>`;
-        button.addEventListener("click", () => loadScorecardDetails(scorecard.id));
-        list.appendChild(button);
-    });
+    const body = document.getElementById("financialReportsTable");
+    if (!body) return;
+    body.innerHTML = scorecards.length ? scorecards.map((report) => {
+        const surplus = Number(report.surplus);
+        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a></div></td></tr>`;
+    }).join("") : '<tr><td colspan="6" class="reports-empty">No financial reports match this date range.</td></tr>';
+    const summary = document.getElementById("reportFilterSummary");
+    if (summary) summary.textContent = `${scorecards.length} of ${financialReports.length} report${financialReports.length === 1 ? "" : "s"}`;
+}
+
+function filterFinancialReports() {
+    const start = document.getElementById("reportStartFilter").value;
+    const end = document.getElementById("reportEndFilter").value;
+    renderScorecardList(financialReports.filter((report) => (!start || report.start_date >= start) && (!end || report.end_date <= end)));
+}
+
+function clearReportFilters() {
+    document.getElementById("reportStartFilter").value = "";
+    document.getElementById("reportEndFilter").value = "";
+    filterFinancialReports();
+}
+
+async function openFinancialReport(id) {
+    const details = document.getElementById("scorecardDetails");
+    details.className = "scorecard-details text-muted";
+    details.textContent = "Loading financial report…";
+    new bootstrap.Modal(document.getElementById("scorecardsModal")).show();
+    await loadScorecardDetails(id);
 }
 
 async function loadScorecardDetails(id) {
@@ -1042,8 +1057,8 @@ async function deleteActiveScorecard() {
 }
 
 async function refreshScorecardList() {
-    const scorecards = await api("/api/scorecards");
-    renderScorecardList(scorecards);
+    financialReports = await api("/api/scorecards");
+    filterFinancialReports();
 }
 
 function renderScorecardDetails(scorecard) {

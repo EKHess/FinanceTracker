@@ -53,6 +53,19 @@ body { margin: 0; background: var(--canvas); color: var(--ink); font-family: Int
 .settings-title { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }.settings-title p { margin-bottom: 0; }
 .empty-state { min-height: 320px; display: grid; place-content: center; justify-items: center; color: var(--muted); text-align: center; }.empty-state>i { margin-bottom: 15px; color: #a8bdca; font-size: 42px; }.empty-state h2 { color: var(--ink); font-size: 18px; }.empty-state p { margin-top: 8px; }
 .scorecard-details .category-summary { border-left: .35rem solid var(--category-color); }.scorecard-details .expense-row { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: .75rem; align-items: center; }.scorecard-editor-card { background: #fbfcff; }.scorecard-expense-form { border-top: 1px solid #dee2e6; padding-top: 1rem; }
+.reports-header .btn { min-width: 126px; }
+.reports-panel { padding: 0; overflow: hidden; }
+.report-filters { padding: 18px 20px; display: flex; align-items: end; gap: 14px; border-bottom: 1px solid var(--line); background: #fbfcfd; }
+.report-filters > div { width: min(220px, 35%); }
+.reports-table-wrap { overflow-x: auto; }
+.reports-table { width: 100%; min-width: 820px; border-collapse: collapse; }
+.reports-table th { padding: 17px 20px; color: #536579; background: #fbfcfd; font-size: 12px; font-weight: 750; text-align: left; }
+.reports-table td { padding: 17px 20px; border-top: 1px solid var(--line); font-size: 14px; font-weight: 550; }
+.report-balance { font-weight: 750 !important; }.report-balance.surplus { color: var(--green); }.report-balance.deficit { color: #d84e4e; }
+.report-actions { display: flex; gap: 9px; }.report-actions button,.report-actions a { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: white; color: #536579; text-decoration: none; }.report-actions button:hover,.report-actions a:hover { border-color: var(--green); color: var(--green); }
+.reports-empty { padding: 46px !important; color: var(--muted); text-align: center; }.report-filter-summary { padding: 12px 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; text-align: right; }
+html[data-bs-theme="dark"] .report-filters,html[data-bs-theme="dark"] .reports-table th { background: #141e28; } html[data-bs-theme="dark"] .report-actions button,html[data-bs-theme="dark"] .report-actions a { background: #19232e; color: var(--ink); }
+@media (max-width: 576px) { .report-filters { align-items: stretch; flex-direction: column; }.report-filters > div,.report-filters .btn { width: 100%; } }
 @media (max-width: 850px) { .sidebar { width: 76px; padding-inline: 10px; }.brand span:last-child,.nav-label,.app-nav button:not(.active)::after,.app-nav button { font-size: 0; }.app-nav button { justify-content: center; }.app-nav button i { width: auto; font-size: 17px; }.month-switcher div,.month-switcher .ms-auto { display:none; }.month-switcher { justify-content:center; }.main-content { width: calc(100% - 76px); margin-left:76px; padding:24px 18px; } }
 @media (max-width: 576px) { .sidebar { position: static; width: 100%; min-height: auto; }.app-shell { display:block; }.brand { padding-bottom: 8px; }.app-nav { grid-template-columns: repeat(4,1fr); }.nav-label,.month-switcher { display:none; }.main-content { width:100%; margin:0; }.page-header,.header-actions { flex-direction:column; }.scorecard-details .expense-row { grid-template-columns:1fr; } }
 

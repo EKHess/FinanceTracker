@@ -288,6 +288,7 @@ def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, mo
     assert scorecard["name"] == "July 2026"
     assert scorecard["total_spending"] == 1150
     assert scorecard["income"] == 2000
+    assert scorecard["surplus"] == 850
     assert scorecard["income_period_duration"] == 1
     assert scorecard["income_period_unit"] == "month"
     assert scorecard["income_snapshot_present"] == 1
