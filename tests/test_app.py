@@ -1,4 +1,5 @@
 import importlib
+import re
 from datetime import datetime
 
 
@@ -499,6 +500,31 @@ def test_year_to_date_summary_aggregates_reports_and_saved_invested_spending(tmp
         "saved_and_invested": 300.0,
         "percent_saved_invested": 30.0,
     }
+
+
+def test_all_reports_pdf_export_has_title_and_one_page_per_report(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 2000})
+    first = _create_scorecard_with_one_charge(client)
+    second = client.post("/api/scorecards", json={
+        "name": "August 2026", "start_date": "2026-08-01", "end_date": "2026-08-31",
+    }).get_json()
+    response = client.get("/api/scorecards/export.pdf")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/pdf"
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert response.data.startswith(b"%PDF-1.4")
+    assert len(re.findall(rb"/Type /Page\b", response.data)) == 3
+    assert b"Financial Reports" in response.data
+    assert first["start_date"].encode() in response.data
+    assert second["end_date"].encode() in response.data
 
 
 def test_database_export_can_be_imported_to_restore_state(tmp_path, monkeypatch):
