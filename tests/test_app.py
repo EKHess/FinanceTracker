@@ -247,6 +247,40 @@ def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_p
     assert annual_due_period["summary"]["spending"] == 347
 
 
+def test_recurring_expenses_repeat_for_every_occurrence_in_workspace_period(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/expenses", json={
+        "description": "Biweekly investment", "amount": 100, "category": "investments",
+        "recurring": True, "expense_date": "2030-01-10",
+        "recurrence_interval": 2, "recurrence_unit": "week",
+    }).status_code == 200
+
+    conn = database.get_connection()
+    conn.execute(
+        "UPDATE workspace_schedule SET period_start = ?, next_run = ? WHERE id = 1",
+        ("2030-01-01", "2030-02-01T00:00"),
+    )
+    conn.commit()
+    conn.close()
+
+    dashboard = client.get("/api/dashboard").get_json()
+    assert [expense["expense_date"] for expense in dashboard["expenses"]] == [
+        "2030-01-10", "2030-01-24",
+    ]
+    assert dashboard["summary"]["spending"] == 200
+    assert dashboard["summary"]["recurring_total"] == 200
+    investments = next(category for category in dashboard["categories"] if category["id"] == "investments")
+    assert investments["count"] == 2
+    assert investments["total"] == 200
+    assert len(dashboard["recurring_expenses"]) == 1
+
+
 def test_scorecard_save_snapshots_expenses_and_resets_non_recurring(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

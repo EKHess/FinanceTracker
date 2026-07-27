@@ -56,10 +56,10 @@ def _next_occurrence(value, interval, unit, preferred_day):
     return _add_months(value, interval * 12, preferred_day)
 
 
-def occurs_in_period(expense, period_start, period_end):
-    """Return whether an expense has an occurrence in [start, end)."""
+def occurrences_in_period(expense, period_start, period_end):
+    """Return one expense entry for every occurrence in ``[start, end)``."""
     if not expense["recurring"]:
-        return True
+        return [expense]
     occurrence = date.fromisoformat(expense["expense_date"])
     start = date.fromisoformat(period_start) if isinstance(period_start, str) else period_start
     end = date.fromisoformat(period_end) if isinstance(period_end, str) else period_end
@@ -67,7 +67,19 @@ def occurs_in_period(expense, period_start, period_end):
     preferred_day = occurrence.day
     while occurrence < start:
         occurrence = _next_occurrence(occurrence, interval, expense["recurrence_unit"], preferred_day)
-    return occurrence < end
+
+    occurrences = []
+    while occurrence < end:
+        item = expense.copy()
+        item["expense_date"] = occurrence.isoformat()
+        occurrences.append(item)
+        occurrence = _next_occurrence(occurrence, interval, expense["recurrence_unit"], preferred_day)
+    return occurrences
+
+
+def occurs_in_period(expense, period_start, period_end):
+    """Return whether an expense has at least one occurrence in ``[start, end)``."""
+    return bool(occurrences_in_period(expense, period_start, period_end))
 
 
 def get_workspace_expenses(month_id, category=None):
@@ -79,7 +91,11 @@ def get_workspace_expenses(month_id, category=None):
     if schedule is None:
         return expenses
     period_end = schedule["next_run"].split("T", 1)[0]
-    return [expense for expense in expenses if occurs_in_period(expense, schedule["period_start"], period_end)]
+    return [
+        occurrence
+        for expense in expenses
+        for occurrence in occurrences_in_period(expense, schedule["period_start"], period_end)
+    ]
 
 
 def normalize_expense_date(expense_date=None):
