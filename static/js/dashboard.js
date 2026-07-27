@@ -56,7 +56,7 @@ async function loadNetWorth() {
 function renderLiabilityAutocomplete(liabilities) {
     const list = document.getElementById("liabilityNames");
     if (!list) return;
-    list.replaceChildren(...liabilities.map((liability) => {
+    list.replaceChildren(...liabilities.filter((liability) => liability.amount > 0).map((liability) => {
         const option = document.createElement("option");
         option.value = liability.name;
         option.label = `${liability.name} · ${money.format(liability.amount)} remaining`;
@@ -120,8 +120,32 @@ function renderNetWorthItems(type, items) {
         return;
     }
     items.forEach((item) => {
+        const section = document.createElement("div");
+        section.className = type === "liability" ? "liability-section" : "worth-section";
         const row = document.createElement("div");
         row.className = "worth-row";
+        let history;
+        if (type === "liability") {
+            const historyId = `liability-payments-${item.id}`;
+            row.classList.add("liability-toggle");
+            row.tabIndex = 0;
+            row.setAttribute("role", "button");
+            row.setAttribute("aria-expanded", "false");
+            row.setAttribute("aria-controls", historyId);
+            history = renderLiabilityPayments(item, historyId);
+            const toggle = () => {
+                const expanded = row.getAttribute("aria-expanded") === "true";
+                row.setAttribute("aria-expanded", String(!expanded));
+                history.hidden = expanded;
+            };
+            row.addEventListener("click", toggle);
+            row.addEventListener("keydown", (event) => {
+                if (event.target === row && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    toggle();
+                }
+            });
+        }
         const icon = document.createElement("span");
         icon.className = `worth-row-icon ${type}`;
         icon.innerHTML = `<i class="bi bi-${type === "asset" ? "bank" : "credit-card"}"></i>`;
@@ -130,17 +154,54 @@ function renderNetWorthItems(type, items) {
         name.textContent = item.name;
         const category = document.createElement("small");
         category.textContent = item.category || (type === "asset" ? "Asset" : "Liability");
+        if (type === "liability") {
+            const count = item.payment_history?.length || 0;
+            category.textContent += ` · ${count} ${count === 1 ? "payment" : "payments"}`;
+        }
         copy.append(name, category);
         const amount = document.createElement("b");
         amount.textContent = money.format(item.amount);
         const actions = document.createElement("div");
         actions.className = "worth-actions";
         actions.innerHTML = '<button type="button" aria-label="Edit item"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete item"><i class="bi bi-trash"></i></button>';
-        actions.children[0].onclick = () => openNetWorthModal(type, item);
-        actions.children[1].onclick = () => deleteNetWorthItem(item.id);
+        actions.children[0].onclick = (event) => { event.stopPropagation(); openNetWorthModal(type, item); };
+        actions.children[1].onclick = (event) => { event.stopPropagation(); deleteNetWorthItem(item.id); };
         row.append(icon, copy, amount, actions);
-        container.appendChild(row);
+        section.appendChild(row);
+        if (history) section.appendChild(history);
+        container.appendChild(section);
     });
+}
+
+function renderLiabilityPayments(item, historyId) {
+    const history = document.createElement("div");
+    history.id = historyId;
+    history.className = "liability-payments";
+    history.hidden = true;
+    const payments = item.payment_history || [];
+    if (!payments.length) {
+        const empty = document.createElement("p");
+        empty.className = "liability-payments-empty";
+        empty.textContent = "No payments recorded yet.";
+        history.appendChild(empty);
+        return history;
+    }
+    const heading = document.createElement("div");
+    heading.className = "liability-payment-head";
+    heading.innerHTML = "<span>Payment date</span><span>Amount</span>";
+    history.appendChild(heading);
+    payments.forEach((payment) => {
+        const row = document.createElement("div");
+        row.className = "liability-payment-row";
+        const paymentDate = document.createElement("time");
+        paymentDate.dateTime = payment.date;
+        paymentDate.textContent = formatWorkspacePeriodDate(payment.date);
+        const amount = document.createElement("strong");
+        amount.textContent = money.format(payment.amount);
+        row.append(paymentDate, amount);
+        history.appendChild(row);
+    });
+    return history;
 }
 
 function openNetWorthModal(type, item = null) {

@@ -60,7 +60,7 @@ def test_liability_overpayment_is_rejected_with_current_balance(tmp_path, monkey
     assert client.get("/api/expenses").get_json() == []
 
 
-def test_full_liability_payment_deletes_liability(tmp_path, monkeypatch):
+def test_full_liability_payment_keeps_paid_liability_and_history(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
     import app as app_module
@@ -68,11 +68,37 @@ def test_full_liability_payment_deletes_liability(tmp_path, monkeypatch):
     importlib.reload(app_module)
     client = app_module.app.test_client()
     client.post("/api/net-worth", json={"item_type": "liability", "name": "Final Payment", "amount": 600})
-    response = client.post("/api/expenses", json={"description": "Final Payment", "amount": 600, "category": "savings"})
+    response = client.post("/api/expenses", json={"description": "Final Payment", "amount": 600, "category": "savings", "expense_date": "2026-07-14"})
     assert response.status_code == 200
     state = client.get("/api/net-worth").get_json()
-    assert state["liabilities"] == []
+    assert state["liabilities"][0]["amount"] == 0
+    assert state["liabilities"][0]["payment_history"] == [{"id": 1, "date": "2026-07-14", "amount": 600}]
     assert state["total_liabilities"] == 0
+
+
+def test_liability_payment_history_tracks_expense_edits_and_deletes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    client.post("/api/net-worth", json={"item_type": "liability", "name": "Car Loan", "amount": 1000})
+    client.post("/api/expenses", json={"description": "Car Loan", "amount": 100, "category": "fixed", "expense_date": "2026-06-01"})
+    expense_id = client.get("/api/expenses").get_json()[0]["id"]
+
+    history = client.get("/api/net-worth").get_json()["liabilities"][0]["payment_history"]
+    assert history == [{"id": expense_id, "date": "2026-06-01", "amount": 100}]
+
+    client.put(f"/api/expenses/{expense_id}", json={"description": "Car Loan", "amount": 175, "category": "fixed", "expense_date": "2026-06-15"})
+    liability = client.get("/api/net-worth").get_json()["liabilities"][0]
+    assert liability["amount"] == 825
+    assert liability["payment_history"] == [{"id": expense_id, "date": "2026-06-15", "amount": 175}]
+
+    client.delete(f"/api/expenses/{expense_id}")
+    liability = client.get("/api/net-worth").get_json()["liabilities"][0]
+    assert liability["amount"] == 1000
+    assert liability["payment_history"] == []
 
 
 def test_net_worth_rejects_invalid_items(tmp_path, monkeypatch):

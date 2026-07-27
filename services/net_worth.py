@@ -19,7 +19,25 @@ def _validate(item_type, name, amount):
 def get_net_worth():
     conn = database.get_connection()
     rows = [dict(row) for row in conn.execute("SELECT id, item_type, name, category, amount FROM net_worth_items ORDER BY id")]
+    payment_rows = conn.execute(
+        """
+        SELECT id, liability_item_id, expense_date, liability_payment_amount
+        FROM expenses
+        WHERE liability_item_id IS NOT NULL AND liability_payment_amount IS NOT NULL
+        ORDER BY expense_date DESC, id DESC
+        """
+    ).fetchall()
     conn.close()
+    payments_by_liability = {}
+    for payment in payment_rows:
+        payments_by_liability.setdefault(payment["liability_item_id"], []).append({
+            "id": payment["id"],
+            "date": payment["expense_date"],
+            "amount": payment["liability_payment_amount"],
+        })
+    for row in rows:
+        if row["item_type"] == "liability":
+            row["payment_history"] = payments_by_liability.get(row["id"], [])
     assets = [row for row in rows if row["item_type"] == "asset"]
     liabilities = [row for row in rows if row["item_type"] == "liability"]
     total_assets = sum(row["amount"] for row in assets)
@@ -72,9 +90,6 @@ def apply_liability_payment(conn, description, amount):
             f"This expense exceeds the current value of {description.strip()}. "
             f"The current liability balance is ${balance:,.2f}."
         )
-    if payment_amount == balance:
-        conn.execute("DELETE FROM net_worth_items WHERE id = ?", (liability["id"],))
-        return None
     conn.execute(
         "UPDATE net_worth_items SET amount = amount - ? WHERE id = ?",
         (payment_amount, liability["id"]),
