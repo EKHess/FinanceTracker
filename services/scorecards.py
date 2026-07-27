@@ -3,6 +3,7 @@ from database import get_connection
 from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
 from services.global_balance import get_global_balance
+from services.net_worth import get_net_worth
 
 
 def _scorecard_expenses(scorecard_id):
@@ -51,6 +52,7 @@ def _serialize_scorecard(row, include_expenses=False):
     scorecard["income"] = float(scorecard.get("income") or 0)
     scorecard["surplus"] = scorecard["income"] - scorecard["total_spending"]
     scorecard["global_balance"] = float(scorecard.get("global_balance") or 0)
+    scorecard["net_worth"] = float(scorecard["net_worth"]) if scorecard.get("net_worth") is not None else None
     if include_expenses:
         expenses = _scorecard_expenses(scorecard["id"])
         scorecard["expenses"] = expenses
@@ -107,7 +109,7 @@ def list_scorecards():
     rows = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, net_worth, created_at
         FROM scorecards
         ORDER BY created_at DESC, id DESC
         """
@@ -163,7 +165,7 @@ def get_scorecard(scorecard_id):
     row = conn.execute(
         """
         SELECT id, name, start_date, end_date, total_spending, income,
-               income_period_duration, income_period_unit, income_snapshot_present, global_balance, created_at
+               income_period_duration, income_period_unit, income_snapshot_present, global_balance, net_worth, created_at
         FROM scorecards
         WHERE id = ?
         """,
@@ -186,17 +188,18 @@ def create_scorecard(month_id, name, start_date, end_date):
 
     snapshot = dashboard_summary(month_id)
     global_balance = get_global_balance(month_id)["balance"]
+    net_worth = get_net_worth()["net_worth"]
     expenses = snapshot["expenses"]
 
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present, global_balance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
+        INSERT INTO scorecards (name, start_date, end_date, total_spending, income, income_period_duration, income_period_unit, income_snapshot_present, global_balance, net_worth)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
         """,
         (name, start_date, end_date, snapshot["summary"]["spending"], snapshot["summary"]["income"],
-         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"], global_balance),
+         snapshot["month"]["income_period_duration"], snapshot["month"]["income_period_unit"], global_balance, net_worth),
     )
     scorecard_id = cursor.lastrowid
 

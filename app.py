@@ -11,6 +11,7 @@ from services.expenses import add_expense, delete_expense, get_expenses, update_
 from services.finance import dashboard_summary
 from services.global_balance import draw_from_surplus, get_global_balance, save_deficit_pledge
 from services.months import get_category_totals, get_month_summary, update_income
+from services.net_worth import add_item, delete_item, get_net_worth, update_item
 from services.pdf_reports import build_financial_reports_pdf
 from services.income import get_income_profile, get_tax_rulesets, save_income_profile
 from services.scorecards import (
@@ -56,6 +57,34 @@ def dashboard():
 def api_dashboard():
     month = get_current_month()
     return jsonify(dashboard_summary(month["id"]))
+
+
+@app.route("/api/net-worth")
+def api_net_worth():
+    return jsonify(get_net_worth())
+
+
+@app.route("/api/net-worth", methods=["POST"])
+def api_add_net_worth_item():
+    data = request.get_json() or {}
+    try:
+        item_id = add_item(data.get("item_type"), data.get("name"), data.get("category"), data.get("amount"))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"id": item_id}), 201
+
+
+@app.route("/api/net-worth/<int:item_id>", methods=["PUT", "DELETE"])
+def api_net_worth_item(item_id):
+    if request.method == "DELETE":
+        delete_item(item_id)
+        return jsonify({"success": True})
+    data = request.get_json() or {}
+    try:
+        update_item(item_id, data.get("item_type"), data.get("name"), data.get("category"), data.get("amount"))
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"success": True})
 
 
 @app.route("/api/global-balance")
@@ -339,6 +368,7 @@ def api_export_scorecard_csv(id):
     writer.writerow(["Total Expenses", scorecard["total_spending"]])
     writer.writerow(["Surplus / Deficit", scorecard["surplus"]])
     writer.writerow(["Global Surplus / Deficit at Save", scorecard["global_balance"]])
+    writer.writerow(["Net Worth at Save", scorecard["net_worth"]])
     for category in scorecard["categories"]:
         writer.writerow([f"{category['label']} Spending", category["total"]])
     largest = scorecard["summary"]["largest_expense"]

@@ -145,6 +145,17 @@ def initialize_database():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS net_worth_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_type TEXT NOT NULL CHECK(item_type IN ('asset', 'liability')),
+        name TEXT NOT NULL,
+        category TEXT NOT NULL DEFAULT '',
+        amount REAL NOT NULL CHECK(amount >= 0),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     _ensure_column(cursor, "months", "income_mode", "TEXT NOT NULL DEFAULT 'simple'")
     _ensure_column(cursor, "months", "income_period_duration", "REAL NOT NULL DEFAULT 1")
     _ensure_column(cursor, "months", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
@@ -160,6 +171,8 @@ def initialize_database():
     _ensure_column(cursor, "expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(cursor, "expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "expenses", "global_type", "TEXT")
+    _ensure_column(cursor, "expenses", "liability_item_id", "INTEGER")
+    _ensure_column(cursor, "expenses", "liability_payment_amount", "REAL")
     _ensure_column(cursor, "scorecard_expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(cursor, "scorecard_expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "scorecard_expenses", "global_type", "TEXT")
@@ -168,6 +181,7 @@ def initialize_database():
     _ensure_column(cursor, "scorecards", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "scorecards", "income_snapshot_present", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(cursor, "scorecards", "global_balance", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "scorecards", "net_worth", "REAL")
     cursor.execute(
         "UPDATE expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
         (date.today().isoformat(),),
