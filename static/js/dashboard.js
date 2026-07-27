@@ -32,6 +32,88 @@ function navigateTo(page) {
     if (page === "settings") loadWorkspaceSchedule();
     if (page === "recurring") renderRecurringExpensesPage();
     if (page === "reports") refreshScorecardList();
+    if (page === "net-worth") loadNetWorth();
+}
+
+let netWorthState = { assets: [], liabilities: [] };
+
+async function loadNetWorth() {
+    netWorthState = await api("/api/net-worth");
+    document.getElementById("netWorthTotal").textContent = money.format(netWorthState.net_worth);
+    document.getElementById("netWorthTotal").classList.toggle("negative", netWorthState.net_worth < 0);
+    document.getElementById("netWorthAssets").textContent = money.format(netWorthState.total_assets);
+    document.getElementById("netWorthLiabilities").textContent = money.format(netWorthState.total_liabilities);
+    document.getElementById("assetTotal").textContent = money.format(netWorthState.total_assets);
+    document.getElementById("liabilityTotal").textContent = money.format(netWorthState.total_liabilities);
+    renderNetWorthItems("asset", netWorthState.assets);
+    renderNetWorthItems("liability", netWorthState.liabilities);
+}
+
+function renderNetWorthItems(type, items) {
+    const container = document.getElementById(`${type}Items`);
+    container.replaceChildren();
+    if (!items.length) {
+        const empty = document.createElement("p");
+        empty.className = "worth-empty";
+        empty.textContent = `No ${type === "asset" ? "assets" : "liabilities"} added yet.`;
+        container.appendChild(empty);
+        return;
+    }
+    items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "worth-row";
+        const icon = document.createElement("span");
+        icon.className = `worth-row-icon ${type}`;
+        icon.innerHTML = `<i class="bi bi-${type === "asset" ? "bank" : "credit-card"}"></i>`;
+        const copy = document.createElement("div");
+        const name = document.createElement("strong");
+        name.textContent = item.name;
+        const category = document.createElement("small");
+        category.textContent = item.category || (type === "asset" ? "Asset" : "Liability");
+        copy.append(name, category);
+        const amount = document.createElement("b");
+        amount.textContent = money.format(item.amount);
+        const actions = document.createElement("div");
+        actions.className = "worth-actions";
+        actions.innerHTML = '<button type="button" aria-label="Edit item"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete item"><i class="bi bi-trash"></i></button>';
+        actions.children[0].onclick = () => openNetWorthModal(type, item);
+        actions.children[1].onclick = () => deleteNetWorthItem(item.id);
+        row.append(icon, copy, amount, actions);
+        container.appendChild(row);
+    });
+}
+
+function openNetWorthModal(type, item = null) {
+    document.getElementById("netWorthItemId").value = item?.id || "";
+    document.getElementById("netWorthItemType").value = type;
+    document.getElementById("netWorthName").value = item?.name || "";
+    document.getElementById("netWorthCategory").value = item?.category || "";
+    document.getElementById("netWorthAmount").value = item?.amount ?? "";
+    document.getElementById("netWorthModalTitle").textContent = `${item ? "Edit" : "Add"} ${type === "asset" ? "Asset" : "Liability"}`;
+    document.getElementById("netWorthError").classList.add("d-none");
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("netWorthModal")).show();
+}
+
+async function saveNetWorthItem(event) {
+    event.preventDefault();
+    const id = document.getElementById("netWorthItemId").value;
+    const payload = { item_type: document.getElementById("netWorthItemType").value, name: document.getElementById("netWorthName").value,
+        category: document.getElementById("netWorthCategory").value, amount: Number(document.getElementById("netWorthAmount").value) };
+    try {
+        await api(id ? `/api/net-worth/${id}` : "/api/net-worth", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
+        bootstrap.Modal.getInstance(document.getElementById("netWorthModal")).hide();
+        await loadNetWorth();
+    } catch (error) {
+        const alert = document.getElementById("netWorthError");
+        alert.textContent = error.message;
+        alert.classList.remove("d-none");
+    }
+}
+
+async function deleteNetWorthItem(id) {
+    if (!confirm("Delete this item?")) return;
+    await api(`/api/net-worth/${id}`, { method: "DELETE" });
+    await loadNetWorth();
 }
 
 function openWorkspaceSettings() {

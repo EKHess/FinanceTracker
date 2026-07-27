@@ -15,14 +15,11 @@
     <div class="nav-label">Main</div>
     <nav class="app-nav">
         <button data-page="budget" class="active" onclick="navigateTo('budget')"><i class="bi bi-calendar2-week"></i>Monthly Budget</button>
-        <button data-page="cashflow" onclick="navigateTo('cashflow')"><i class="bi bi-pie-chart"></i>Cash Flow Dashboard</button>
-        <button data-page="progress" onclick="navigateTo('progress')"><i class="bi bi-graph-up-arrow"></i>Progress Dashboard</button>
+        <button data-page="net-worth" onclick="navigateTo('net-worth')"><i class="bi bi-briefcase"></i>Assets &amp; Liabilities</button>
         <button data-page="reports" onclick="showScorecards()"><i class="bi bi-file-earmark-bar-graph"></i>Financial Reports</button>
     </nav>
     <div class="nav-label">Manage</div>
     <nav class="app-nav">
-        <button data-page="assets" onclick="navigateTo('assets')"><i class="bi bi-wallet2"></i>Assets</button>
-        <button data-page="liabilities" onclick="navigateTo('liabilities')"><i class="bi bi-circle"></i>Liabilities</button>
         <button data-page="income" onclick="navigateTo('income')"><i class="bi bi-cash-stack"></i>Income Sources</button>
         <button data-page="recurring" onclick="navigateTo('recurring')"><i class="bi bi-arrow-repeat"></i>Recurring Items</button>
     </nav>
@@ -63,6 +60,14 @@
         </div>
         <div id="globalBalanceError" class="global-balance-error d-none"></div>
     </section>
+</section>
+<section class="app-page" id="page-net-worth">
+    <header class="page-header net-worth-header"><div><h1>Assets &amp; Liabilities</h1><p>Track your assets, liabilities, and overall net worth.</p></div><button class="btn btn-outline-secondary" type="button" title="Net worth is total assets minus total liabilities"><i class="bi bi-question-circle me-2"></i>How net worth is calculated</button></header>
+    <section class="net-worth-hero panel"><span>Total Net Worth</span><strong id="netWorthTotal">$0.00</strong><p>Assets <b id="netWorthAssets">$0.00</b> <i>−</i> Liabilities <b id="netWorthLiabilities">$0.00</b></p></section>
+    <div class="net-worth-columns">
+        <section class="panel worth-panel"><header><div class="worth-title"><span class="worth-icon asset"><i class="bi bi-briefcase"></i></span><h2>Assets</h2></div><div class="worth-total">Total Assets<strong id="assetTotal">$0.00</strong></div></header><div class="worth-table-head"><span>Asset</span><span>Current Value</span><span></span></div><div id="assetItems" class="worth-items"></div><button class="worth-add asset" onclick="openNetWorthModal('asset')"><i class="bi bi-plus-lg"></i>Add Asset</button></section>
+        <section class="panel worth-panel"><header><div class="worth-title"><span class="worth-icon liability"><i class="bi bi-credit-card"></i></span><h2>Liabilities</h2></div><div class="worth-total">Total Liabilities<strong id="liabilityTotal">$0.00</strong></div></header><div class="worth-table-head"><span>Liability</span><span>Current Balance</span><span></span></div><div id="liabilityItems" class="worth-items"></div><button class="worth-add liability" onclick="openNetWorthModal('liability')"><i class="bi bi-plus-lg"></i>Add Liability</button></section>
+    </div>
 </section>
 <section class="app-page" id="page-reports">
     <header class="page-header reports-header"><div><h1>Financial Reports</h1><p>View your financial reports and historical snapshots.</p></div><a href="/api/scorecards/export.pdf" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>Export PDF</a></header>
@@ -156,8 +161,9 @@
                         </div>
                 </div></div></article></div></section>
 <section class="app-page" id="page-recurring"><header class="page-header"><div><h1>Recurring Items</h1><p>Review and manage all recurring expenses in your current workspace.</p></div></header><div class="panel recurring-items-panel"><div class="existing-expenses-header"><h2>Recurring Expenses</h2><div class="expense-list-tools"><div class="search-wrap"><i class="bi bi-search"></i><input id="recurringExpenseSearch" class="form-control" placeholder="Search recurring expenses..." oninput="handleRecurringExpenseSearch()"></div><select id="recurringExpenseSort" class="form-select" onchange="renderRecurringExpensesPage()"><option value="date">Date</option><option value="description">Description</option><option value="category">Category</option><option value="amount">Amount</option></select></div></div><div class="expense-manager-table"><div class="expense-manager-head"><span>Date</span><span>Description</span><span>Category</span><span>Amount</span><span>Recurring</span><span></span></div><div id="recurringExpenseRows"></div><button id="showMoreRecurringExpenses" class="show-more-expenses d-none" onclick="showMoreRecurringExpenses()"></button></div></div></section>
-{% for page,title,icon in [('cashflow','Cash Flow Dashboard','pie-chart'),('progress','Progress Dashboard','graph-up-arrow'),('assets','Assets','wallet2'),('liabilities','Liabilities','circle'),('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
+{% for page,title,icon in [('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
 </main></div>
+<div class="modal fade" id="netWorthModal" tabindex="-1" aria-labelledby="netWorthModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form onsubmit="saveNetWorthItem(event)"><div class="modal-header"><h5 class="modal-title" id="netWorthModalTitle">Add Asset</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input id="netWorthItemId" type="hidden"><input id="netWorthItemType" type="hidden"><div class="mb-3"><label class="form-label" for="netWorthName">Name</label><input id="netWorthName" class="form-control" required maxlength="100" placeholder="e.g. Emergency Fund"></div><div class="mb-3"><label class="form-label" for="netWorthCategory">Category (optional)</label><input id="netWorthCategory" class="form-control" maxlength="100" placeholder="e.g. Savings"></div><label class="form-label" for="netWorthAmount">Current value or balance</label><div class="input-group"><span class="input-group-text">$</span><input id="netWorthAmount" class="form-control" type="number" min="0" step="0.01" required></div><div id="netWorthError" class="alert alert-danger mt-3 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Save</button></div></form></div></div></div>
 <div class="modal fade" id="addExpenseModal" tabindex="-1" aria-labelledby="addExpenseTitle" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">

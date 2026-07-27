@@ -3,6 +3,40 @@ import re
 from datetime import datetime
 
 
+def test_net_worth_crud_and_totals(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    asset = client.post("/api/net-worth", json={"item_type": "asset", "name": "Savings", "category": "Cash", "amount": 1200})
+    liability = client.post("/api/net-worth", json={"item_type": "liability", "name": "Card", "amount": 350})
+    assert asset.status_code == 201
+    assert liability.status_code == 201
+    state = client.get("/api/net-worth").get_json()
+    assert state["total_assets"] == 1200
+    assert state["total_liabilities"] == 350
+    assert state["net_worth"] == 850
+
+    assert client.put(f'/api/net-worth/{asset.get_json()["id"]}', json={"item_type": "asset", "name": "Savings", "category": "Cash", "amount": 1500}).status_code == 200
+    assert client.delete(f'/api/net-worth/{liability.get_json()["id"]}').status_code == 200
+    assert client.get("/api/net-worth").get_json()["net_worth"] == 1500
+
+
+def test_net_worth_rejects_invalid_items(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    assert client.post("/api/net-worth", json={"item_type": "asset", "name": "", "amount": 1}).status_code == 400
+    assert client.post("/api/net-worth", json={"item_type": "other", "name": "No", "amount": 1}).status_code == 400
+    assert client.post("/api/net-worth", json={"item_type": "liability", "name": "Loan", "amount": -1}).status_code == 400
+
+
 def test_dashboard_payload_uses_category_ids(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
