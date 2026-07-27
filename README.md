@@ -104,12 +104,51 @@ Canada's federal and ten provincial rulesets are seeded for 2026. Rulesets are s
 > [!IMPORTANT]
 > FinanceTracker provides a configurable estimate, not tax advice. The calculation currently models configured income-tax brackets and basic personal amounts only; it does not automatically include payroll deductions, surtaxes, benefit clawbacks, additional credits, or other jurisdiction-specific rules. Verify rulesets against official sources before relying on an estimate.
 
+## Assets & Liabilities
+
+Open **Assets & Liabilities** from the navigation to track what you own, what you owe, and your overall net worth. The page calculates:
+
+```text
+Net worth = total assets − total liabilities
+```
+
+### Track assets and liabilities
+
+Use **Add Asset** or **Add Liability** to record an item's name, optional category, and current value or balance. Existing items can be edited or deleted from their row. The page displays separate asset and liability totals and updates the total net worth whenever an item changes.
+
+Examples include:
+
+- Assets such as cash accounts, investments, vehicles, and property.
+- Liabilities such as credit cards, student loans, car loans, and mortgages.
+
+### Record liability payments through costs
+
+An expense is treated as a liability payment when its description exactly matches a liability's name, ignoring capitalization. Liability names are suggested while entering expenses and allocating global surplus so it is easy to select the correct description.
+
+When a matching cost is added, FinanceTracker:
+
+1. Records the expense normally in its selected spending category.
+2. Subtracts the expense amount from the liability's current balance.
+3. Adds the payment date and amount to that liability's payment history.
+
+The payment cannot exceed the liability's current balance. A payment for the full remaining balance leaves the paid-off liability visible at `$0.00`, allowing its history to remain available, but removes it from future expense suggestions.
+
+Each liability row is collapsible. Select it—or focus it and press <kbd>Enter</kbd> or <kbd>Space</kbd>—to view its past payments, newest first. Editing a linked expense updates both the liability balance and its payment history; deleting the expense removes that payment and restores the corresponding amount to the balance.
+
+> [!TIP]
+> For a cost to update a liability, use the liability's full name as the expense description. A non-matching description is saved as a regular expense and does not change any liability balance.
+
+### View net worth over time
+
+Saving a financial report captures the current net worth with that report. The **Net Worth Over Time** chart uses these snapshots and can display the last six months, one year, three years, or all saved history. Changes made between reports affect the next snapshot rather than rewriting previously saved values.
+
 ## Other features
 
 - Create, edit, and delete expenses in each spending category.
 - Mark expenses as recurring.
 - View spending totals, surplus, savings rate, investment rate, and a spending-mix chart.
 - Save a period as a scorecard while carrying recurring expenses forward.
+- Track assets, liabilities, payment histories, and net worth over time.
 - Export scorecards as CSV.
 - Export or import the local SQLite database.
 
