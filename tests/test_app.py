@@ -37,6 +37,25 @@ def test_net_worth_rejects_invalid_items(tmp_path, monkeypatch):
     assert client.post("/api/net-worth", json={"item_type": "liability", "name": "Loan", "amount": -1}).status_code == 400
 
 
+def test_financial_report_snapshots_net_worth_and_exports_it(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    client.post("/api/net-worth", json={"item_type": "asset", "name": "Home", "amount": 500000})
+    client.post("/api/net-worth", json={"item_type": "liability", "name": "Mortgage", "amount": 180000})
+
+    created = client.post("/api/scorecards", json={"name": "July", "start_date": "2026-07-01", "end_date": "2026-07-31"})
+    assert created.status_code == 201
+    report = created.get_json()
+    assert report["net_worth"] == 320000
+    assert client.get("/api/scorecards").get_json()[0]["net_worth"] == 320000
+    assert b"Net Worth" in client.get("/api/scorecards/export.pdf").data
+    assert b"Net Worth at Save" in client.get(f'/api/scorecards/{report["id"]}/export.csv').data
+
+
 def test_dashboard_payload_uses_category_ids(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 

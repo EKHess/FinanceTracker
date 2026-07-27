@@ -36,9 +36,11 @@ function navigateTo(page) {
 }
 
 let netWorthState = { assets: [], liabilities: [] };
+let netWorthHistory = [];
+let netWorthChart;
 
 async function loadNetWorth() {
-    netWorthState = await api("/api/net-worth");
+    [netWorthState, netWorthHistory] = await Promise.all([api("/api/net-worth"), api("/api/scorecards")]);
     document.getElementById("netWorthTotal").textContent = money.format(netWorthState.net_worth);
     document.getElementById("netWorthTotal").classList.toggle("negative", netWorthState.net_worth < 0);
     document.getElementById("netWorthAssets").textContent = money.format(netWorthState.total_assets);
@@ -47,6 +49,35 @@ async function loadNetWorth() {
     document.getElementById("liabilityTotal").textContent = money.format(netWorthState.total_liabilities);
     renderNetWorthItems("asset", netWorthState.assets);
     renderNetWorthItems("liability", netWorthState.liabilities);
+    renderNetWorthHistory();
+}
+
+function netWorthRangeStart(range) {
+    if (range === "all") return null;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setMonth(start.getMonth() - ({ "6m": 6, "1y": 12, "3y": 36 }[range] || 12));
+    return start;
+}
+
+function renderNetWorthHistory() {
+    const canvas = document.getElementById("netWorthChart");
+    if (!canvas) return;
+    const start = netWorthRangeStart(document.getElementById("netWorthRange").value);
+    const points = netWorthHistory.filter((report) => report.net_worth !== null && (!start || new Date(`${report.end_date}T00:00:00`) >= start))
+        .sort((a, b) => a.end_date.localeCompare(b.end_date));
+    document.getElementById("netWorthChartEmpty").classList.toggle("d-none", points.length > 0);
+    canvas.classList.toggle("d-none", points.length === 0);
+    if (netWorthChart) netWorthChart.destroy();
+    if (!points.length) return;
+    netWorthChart = new Chart(canvas, { type: "line", data: { labels: points.map((point) => formatWorkspacePeriodDate(point.end_date)), datasets: [{
+        label: "Net Worth", data: points.map((point) => point.net_worth), borderColor: "#15975d", backgroundColor: "rgba(21,151,93,.12)",
+        pointBackgroundColor: "#15975d", pointBorderColor: "#fff", pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6, borderWidth: 3, fill: true, tension: .3,
+    }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" }, plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: (context) => `Net Worth: ${money.format(context.parsed.y)}` } } }, scales: {
+        x: { grid: { display: false }, ticks: { color: "#718096", maxRotation: 0, autoSkip: true } },
+        y: { grid: { color: "rgba(113,128,150,.14)" }, ticks: { color: "#718096", callback: (value) => money.format(value) } },
+    } } });
 }
 
 function renderNetWorthItems(type, items) {
@@ -1045,8 +1076,8 @@ function renderScorecardList(scorecards) {
     if (!body) return;
     body.innerHTML = scorecards.length ? scorecards.map((report) => {
         const surplus = Number(report.surplus);
-        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="danger" type="button" onclick="deleteScorecard(${report.id})" aria-label="Delete ${escapeHtml(report.name)}" title="Delete report"><i class="bi bi-trash"></i></button></div></td></tr>`;
-    }).join("") : '<tr><td colspan="6" class="reports-empty">No financial reports match this date range.</td></tr>';
+        return `<tr><td>${formatWorkspacePeriodDate(report.start_date)}</td><td>${formatWorkspacePeriodDate(report.end_date)}</td><td>${money.format(report.income)}</td><td>${money.format(report.total_spending)}</td><td class="report-balance ${surplus < 0 ? "deficit" : "surplus"}">${money.format(surplus)}</td><td class="report-balance ${(report.net_worth || 0) < 0 ? "deficit" : "surplus"}">${report.net_worth === null ? "—" : money.format(report.net_worth)}</td><td><div class="report-actions"><button type="button" onclick="openFinancialReport(${report.id})" aria-label="View ${escapeHtml(report.name)}" title="View report"><i class="bi bi-eye"></i></button><a href="/api/scorecards/${report.id}/export.csv" aria-label="Download ${escapeHtml(report.name)} as CSV" title="Download CSV"><i class="bi bi-download"></i></a><button class="danger" type="button" onclick="deleteScorecard(${report.id})" aria-label="Delete ${escapeHtml(report.name)}" title="Delete report"><i class="bi bi-trash"></i></button></div></td></tr>`;
+    }).join("") : '<tr><td colspan="7" class="reports-empty">No financial reports match this date range.</td></tr>';
     const summary = document.getElementById("reportFilterSummary");
     if (summary) summary.textContent = `${scorecards.length} of ${financialReports.length} report${financialReports.length === 1 ? "" : "s"}`;
 }
@@ -1200,7 +1231,7 @@ function renderScorecardDetails(scorecard) {
             </div>
         </div>
         <section class="report-summary" aria-label="Financial report summary">
-            <div class="report-summary-primary"><article><span>Total spending</span><strong>${money.format(scorecard.total_spending)}</strong></article><article><span>Surplus / Deficit</span><strong class="${scorecard.surplus < 0 ? "negative" : "positive"}">${money.format(scorecard.surplus)}</strong></article><article><span>Global Surplus / Deficit</span><strong class="${scorecard.global_balance < 0 ? "negative" : "positive"}">${money.format(scorecard.global_balance)}</strong><small>At time of save</small></article></div>
+            <div class="report-summary-primary"><article><span>Total spending</span><strong>${money.format(scorecard.total_spending)}</strong></article><article><span>Surplus / Deficit</span><strong class="${scorecard.surplus < 0 ? "negative" : "positive"}">${money.format(scorecard.surplus)}</strong></article><article><span>Global Surplus / Deficit</span><strong class="${scorecard.global_balance < 0 ? "negative" : "positive"}">${money.format(scorecard.global_balance)}</strong><small>At time of save</small></article><article><span>Net Worth</span><strong class="${(scorecard.net_worth || 0) < 0 ? "negative" : "positive"}">${scorecard.net_worth === null ? "Not captured" : money.format(scorecard.net_worth)}</strong><small>At time of save</small></article></div>
             <div class="report-category-totals"><div class="summary-section-label">Spending by category</div>${categoryTotals}</div>
             <div class="report-summary-insights"><article><i class="bi bi-arrow-up-right-circle"></i><div><span>Largest expense</span><strong>${largestExpense ? `${escapeHtml(largestExpense.description)} · ${money.format(largestExpense.amount)}` : "No expenses"}</strong><small>${largestExpense ? escapeHtml(largestExpense.category_label) : ""}</small></div></article><article><i class="bi bi-pie-chart"></i><div><span>Largest category</span><strong>${largestCategory ? escapeHtml(largestCategory.label) : "No expenses"}</strong><small>${largestCategory ? money.format(largestCategory.total) : ""}</small></div></article><article><i class="bi bi-receipt"></i><div><span>Total expenses</span><strong>${scorecard.summary.expense_count}</strong><small>Saved charges</small></div></article><article><i class="bi bi-arrow-repeat"></i><div><span>Recurring expenses</span><strong>${scorecard.summary.recurring_count}</strong><small>${scorecard.summary.recurring_percent.toFixed(1)}% of spending</small></div></article></div>
         </section>

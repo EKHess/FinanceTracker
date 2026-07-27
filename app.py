@@ -368,6 +368,7 @@ def api_export_scorecard_csv(id):
     writer.writerow(["Total Expenses", scorecard["total_spending"]])
     writer.writerow(["Surplus / Deficit", scorecard["surplus"]])
     writer.writerow(["Global Surplus / Deficit at Save", scorecard["global_balance"]])
+    writer.writerow(["Net Worth at Save", scorecard["net_worth"]])
     for category in scorecard["categories"]:
         writer.writerow([f"{category['label']} Spending", category["total"]])
     largest = scorecard["summary"]["largest_expense"]

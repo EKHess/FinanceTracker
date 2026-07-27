@@ -179,6 +179,7 @@ def initialize_database():
     _ensure_column(cursor, "scorecards", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "scorecards", "income_snapshot_present", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column(cursor, "scorecards", "global_balance", "REAL NOT NULL DEFAULT 0")
+    _ensure_column(cursor, "scorecards", "net_worth", "REAL")
     cursor.execute(
         "UPDATE expenses SET expense_date = ? WHERE expense_date IS NULL OR expense_date = ''",
         (date.today().isoformat(),),

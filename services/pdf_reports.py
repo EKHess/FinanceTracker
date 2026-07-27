@@ -101,10 +101,11 @@ def _draw_report(pdf, report):
     pdf.new_page()
     pdf.text(MARGIN, 748, report["name"], 22, INK, True)
     pdf.text(MARGIN, 728, f"{report['start_date']} - {report['end_date']}", 10, MUTED)
-    card_width = (PAGE_WIDTH - MARGIN * 2 - 16) / 3
+    card_width = (PAGE_WIDTH - MARGIN * 2 - 24) / 4
     primary = [("Total Spending", report["total_spending"], INK),
                ("Surplus / Deficit", report["surplus"], GREEN if report["surplus"] >= 0 else RED),
-               ("Global Surplus / Deficit", report["global_balance"], GREEN if report["global_balance"] >= 0 else RED)]
+               ("Global Balance", report["global_balance"], GREEN if report["global_balance"] >= 0 else RED),
+               ("Net Worth", report.get("net_worth") or 0, GREEN if (report.get("net_worth") or 0) >= 0 else RED)]
     for index, (label, value, color) in enumerate(primary):
         x = MARGIN + index * (card_width + 8)
         pdf.rect(x, 654, card_width, 58, "f8fbfa")

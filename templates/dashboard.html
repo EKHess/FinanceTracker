@@ -68,6 +68,7 @@
         <section class="panel worth-panel"><header><div class="worth-title"><span class="worth-icon asset"><i class="bi bi-briefcase"></i></span><h2>Assets</h2></div><div class="worth-total">Total Assets<strong id="assetTotal">$0.00</strong></div></header><div class="worth-table-head"><span>Asset</span><span>Current Value</span><span></span></div><div id="assetItems" class="worth-items"></div><button class="worth-add asset" onclick="openNetWorthModal('asset')"><i class="bi bi-plus-lg"></i>Add Asset</button></section>
         <section class="panel worth-panel"><header><div class="worth-title"><span class="worth-icon liability"><i class="bi bi-credit-card"></i></span><h2>Liabilities</h2></div><div class="worth-total">Total Liabilities<strong id="liabilityTotal">$0.00</strong></div></header><div class="worth-table-head"><span>Liability</span><span>Current Balance</span><span></span></div><div id="liabilityItems" class="worth-items"></div><button class="worth-add liability" onclick="openNetWorthModal('liability')"><i class="bi bi-plus-lg"></i>Add Liability</button></section>
     </div>
+    <section class="panel net-worth-history" aria-labelledby="netWorthHistoryTitle"><header><div><h2 id="netWorthHistoryTitle">Net Worth Over Time</h2><p>Based on snapshots saved with your financial reports.</p></div><div><label for="netWorthRange">Date range</label><select id="netWorthRange" class="form-select" onchange="renderNetWorthHistory()"><option value="6m">Last 6 months</option><option value="1y" selected>Last Year</option><option value="3y">Last 3 Years</option><option value="all">All Time</option></select></div></header><div class="net-worth-chart-wrap"><canvas id="netWorthChart" aria-label="Historical net worth line chart"></canvas><div id="netWorthChartEmpty" class="chart-empty d-none">Save at least one financial report to begin tracking net worth over time.</div></div></section>
 </section>
 <section class="app-page" id="page-reports">
     <header class="page-header reports-header"><div><h1>Financial Reports</h1><p>View your financial reports and historical snapshots.</p></div><a href="/api/scorecards/export.pdf" class="btn btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>Export PDF</a></header>
@@ -80,8 +81,8 @@
         </div>
         <div class="reports-table-wrap">
             <table class="reports-table">
-                <thead><tr><th>Start Date</th><th>End Date</th><th>Total Income</th><th>Total Expenses</th><th>Surplus / Deficit</th><th>Actions</th></tr></thead>
-                <tbody id="financialReportsTable"><tr><td colspan="6" class="reports-empty">Loading financial reports…</td></tr></tbody>
+                <thead><tr><th>Start Date</th><th>End Date</th><th>Total Income</th><th>Total Expenses</th><th>Surplus / Deficit</th><th>Net Worth</th><th>Actions</th></tr></thead>
+                <tbody id="financialReportsTable"><tr><td colspan="7" class="reports-empty">Loading financial reports…</td></tr></tbody>
             </table>
         </div>
         <div id="reportFilterSummary" class="report-filter-summary" aria-live="polite"></div>
