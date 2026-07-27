@@ -171,6 +171,8 @@ def initialize_database():
     _ensure_column(cursor, "expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(cursor, "expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "expenses", "global_type", "TEXT")
+    _ensure_column(cursor, "expenses", "liability_item_id", "INTEGER")
+    _ensure_column(cursor, "expenses", "liability_payment_amount", "REAL")
     _ensure_column(cursor, "scorecard_expenses", "recurrence_interval", "INTEGER NOT NULL DEFAULT 1")
     _ensure_column(cursor, "scorecard_expenses", "recurrence_unit", "TEXT NOT NULL DEFAULT 'month'")
     _ensure_column(cursor, "scorecard_expenses", "global_type", "TEXT")

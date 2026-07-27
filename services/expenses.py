@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 from config import CATEGORY_CONFIG
 from database import get_connection
+from services.net_worth import apply_liability_payment, restore_liability_payment
 
 
 def normalize_category(category):
@@ -123,10 +124,12 @@ def normalize_recurrence(recurring, interval=1, unit="month"):
 def add_expense(month_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
+    payment = apply_liability_payment(conn, description, amount)
+    liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
         """
-        INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, liability_item_id, liability_payment_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             month_id,
@@ -137,6 +140,8 @@ def add_expense(month_id, description, amount, category, recurring, expense_date
             normalize_expense_date(expense_date),
             recurrence_interval,
             recurrence_unit,
+            liability_item_id,
+            liability_payment_amount,
         ),
     )
     conn.commit()
@@ -146,13 +151,20 @@ def add_expense(month_id, description, amount, category, recurring, expense_date
 def update_expense(expense_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
+    previous = conn.execute("SELECT amount, liability_item_id, liability_payment_amount FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    if previous is None:
+        conn.close()
+        raise ValueError("Expense not found")
+    restore_liability_payment(conn, previous["liability_item_id"], previous["liability_payment_amount"] or previous["amount"])
+    payment = apply_liability_payment(conn, description, amount)
+    liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
         """
         UPDATE expenses
-        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date), recurrence_interval = ?, recurrence_unit = ?
+        SET description = ?, amount = ?, category = ?, recurring = ?, expense_date = COALESCE(?, expense_date), recurrence_interval = ?, recurrence_unit = ?, liability_item_id = ?, liability_payment_amount = ?
         WHERE id = ?
         """,
-        (description.strip(), amount, normalize_category(category), 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, recurrence_interval, recurrence_unit, expense_id),
+        (description.strip(), amount, normalize_category(category), 1 if recurring else 0, normalize_expense_date(expense_date) if expense_date else None, recurrence_interval, recurrence_unit, liability_item_id, liability_payment_amount, expense_id),
     )
     conn.commit()
     conn.close()
@@ -160,6 +172,9 @@ def update_expense(expense_id, description, amount, category, recurring, expense
 
 def delete_expense(expense_id):
     conn = get_connection()
+    expense = conn.execute("SELECT amount, liability_item_id, liability_payment_amount FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    if expense:
+        restore_liability_payment(conn, expense["liability_item_id"], expense["liability_payment_amount"] or expense["amount"])
     conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
     conn.commit()
     conn.close()

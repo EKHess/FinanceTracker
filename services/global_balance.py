@@ -3,6 +3,7 @@ from datetime import date
 from config import CATEGORY_CONFIG
 from database import get_connection
 from services.expenses import get_workspace_expenses
+from services.net_worth import apply_liability_payment
 
 
 def get_global_balance(month_id):
@@ -85,9 +86,12 @@ def draw_from_surplus(month_id, amount, category, description="Global surplus al
     if category not in CATEGORY_CONFIG:
         raise ValueError("Unknown expense category")
     conn = get_connection()
+    clean_description = (description or "Global surplus allocation").strip()
+    payment = apply_liability_payment(conn, clean_description, amount)
+    liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
-        "INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type) VALUES (?, ?, ?, ?, 0, ?, 1, 'month', 'draw')",
-        (month_id, (description or "Global surplus allocation").strip(), amount, category, date.today().isoformat()),
+        "INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type, liability_item_id, liability_payment_amount) VALUES (?, ?, ?, ?, 0, ?, 1, 'month', 'draw', ?, ?)",
+        (month_id, clean_description, amount, category, date.today().isoformat(), liability_item_id, liability_payment_amount),
     )
     conn.commit()
     conn.close()

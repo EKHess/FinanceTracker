@@ -50,6 +50,22 @@ async function loadNetWorth() {
     renderNetWorthItems("asset", netWorthState.assets);
     renderNetWorthItems("liability", netWorthState.liabilities);
     renderNetWorthHistory();
+    renderLiabilityAutocomplete(netWorthState.liabilities);
+}
+
+function renderLiabilityAutocomplete(liabilities) {
+    const list = document.getElementById("liabilityNames");
+    if (!list) return;
+    list.replaceChildren(...liabilities.map((liability) => {
+        const option = document.createElement("option");
+        option.value = liability.name;
+        option.label = `${liability.name} · ${money.format(liability.amount)} remaining`;
+        return option;
+    }));
+}
+
+async function loadLiabilityAutocomplete() {
+    renderLiabilityAutocomplete((await api("/api/net-worth")).liabilities);
 }
 
 function netWorthRangeStart(range) {
@@ -277,6 +293,7 @@ async function submitGlobalAction(path, payload) {
     try {
         await api(path, { method: "POST", body: JSON.stringify(payload) });
         await loadDashboard();
+        await loadLiabilityAutocomplete();
         document.getElementById("globalDrawDescription").value = "";
         document.getElementById("globalDrawCategory").value = "";
         document.getElementById("globalDrawAmount").value = "";
@@ -354,6 +371,7 @@ async function displayWorkspace(index) {
 async function initializeDashboard() {
     await loadWorkspaceSchedule();
     await loadDashboard();
+    await loadLiabilityAutocomplete();
     await initializeWorkspaceNavigation(true);
 }
 
@@ -831,6 +849,7 @@ async function submitQuickExpense(event) {
     try {
         await api(id ? `/api/expenses/${id}` : "/api/expenses", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
         await loadDashboard();
+        await loadLiabilityAutocomplete();
         resetQuickExpenseForm();
         renderExpenseManager();
         renderRecurringExpensesPage();
@@ -962,6 +981,7 @@ async function deleteManagedExpense(id) {
     if (!confirm("Delete this expense?")) return;
     await api(`/api/expenses/${id}`, { method: "DELETE" });
     await loadDashboard();
+    await loadLiabilityAutocomplete();
     renderExpenseManager();
     renderRecurringExpensesPage();
 }
@@ -993,6 +1013,7 @@ async function saveExpense() {
     await api(path, { method: expenseId ? "PUT" : "POST", body: JSON.stringify(payload) });
     document.getElementById("expenseForm").style.display = "none";
     await refreshCategory();
+    await loadLiabilityAutocomplete();
 }
 
 async function refreshCategory() {
@@ -1018,6 +1039,7 @@ async function deleteExpense(id) {
     if (!confirm("Delete this expense?")) return;
     await api(`/api/expenses/${id}`, { method: "DELETE" });
     await refreshCategory();
+    await loadLiabilityAutocomplete();
 }
 
 initializeTheme();

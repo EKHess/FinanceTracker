@@ -55,3 +55,27 @@ def delete_item(item_id):
     conn.execute("DELETE FROM net_worth_items WHERE id=?", (item_id,))
     conn.commit()
     conn.close()
+
+
+def apply_liability_payment(conn, description, amount):
+    """Deduct a payment from an exactly named liability and return its id."""
+    liability = conn.execute(
+        "SELECT id, amount FROM net_worth_items WHERE item_type='liability' AND name = ? COLLATE NOCASE ORDER BY id LIMIT 1",
+        (str(description or "").strip(),),
+    ).fetchone()
+    if liability is None:
+        return None
+    applied_amount = min(float(amount), float(liability["amount"]))
+    conn.execute(
+        "UPDATE net_worth_items SET amount = MAX(amount - ?, 0) WHERE id = ?",
+        (applied_amount, liability["id"]),
+    )
+    return liability["id"], applied_amount
+
+
+def restore_liability_payment(conn, liability_item_id, amount):
+    if liability_item_id is not None:
+        conn.execute(
+            "UPDATE net_worth_items SET amount = amount + ? WHERE id = ? AND item_type='liability'",
+            (float(amount), liability_item_id),
+        )
