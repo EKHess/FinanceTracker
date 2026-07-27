@@ -68,6 +68,19 @@ async function loadLiabilityAutocomplete() {
     renderLiabilityAutocomplete((await api("/api/net-worth")).liabilities);
 }
 
+function showExpenseSubmissionError(error, inlineAlert = null) {
+    if (error.message.includes("exceeds the current value")) {
+        window.alert(error.message);
+        return;
+    }
+    if (inlineAlert) {
+        inlineAlert.textContent = error.message;
+        inlineAlert.classList.remove("d-none");
+    } else {
+        window.alert(error.message);
+    }
+}
+
 function netWorthRangeStart(range) {
     if (range === "all") return null;
     const start = new Date();
@@ -298,8 +311,7 @@ async function submitGlobalAction(path, payload) {
         document.getElementById("globalDrawCategory").value = "";
         document.getElementById("globalDrawAmount").value = "";
     } catch (err) {
-        error.textContent = err.message;
-        error.classList.remove("d-none");
+        showExpenseSubmissionError(err, error);
     }
 }
 
@@ -856,8 +868,7 @@ async function submitQuickExpense(event) {
         document.getElementById("quickExpenseDescription").focus();
     } catch (err) {
         const error = document.getElementById("quickExpenseError");
-        error.textContent = err.message;
-        error.classList.remove("d-none");
+        showExpenseSubmissionError(err, error);
     }
 }
 
@@ -1010,10 +1021,14 @@ async function saveExpense() {
         recurrence_unit: document.getElementById("expenseRecurrenceUnit").value,
     };
     const path = expenseId ? `/api/expenses/${expenseId}` : "/api/expenses";
-    await api(path, { method: expenseId ? "PUT" : "POST", body: JSON.stringify(payload) });
-    document.getElementById("expenseForm").style.display = "none";
-    await refreshCategory();
-    await loadLiabilityAutocomplete();
+    try {
+        await api(path, { method: expenseId ? "PUT" : "POST", body: JSON.stringify(payload) });
+        document.getElementById("expenseForm").style.display = "none";
+        await refreshCategory();
+        await loadLiabilityAutocomplete();
+    } catch (error) {
+        showExpenseSubmissionError(error);
+    }
 }
 
 async function refreshCategory() {

@@ -87,7 +87,11 @@ def draw_from_surplus(month_id, amount, category, description="Global surplus al
         raise ValueError("Unknown expense category")
     conn = get_connection()
     clean_description = (description or "Global surplus allocation").strip()
-    payment = apply_liability_payment(conn, clean_description, amount)
+    try:
+        payment = apply_liability_payment(conn, clean_description, amount)
+    except ValueError:
+        conn.close()
+        raise
     liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
         "INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type, liability_item_id, liability_payment_amount) VALUES (?, ?, ?, ?, 0, ?, 1, 'month', 'draw', ?, ?)",

@@ -45,7 +45,7 @@ def test_liability_named_expense_reduces_balance_and_reconciles_edits(tmp_path, 
     assert client.get("/api/net-worth").get_json()["total_liabilities"] == 1950
 
 
-def test_liability_payment_never_reduces_balance_below_zero(tmp_path, monkeypatch):
+def test_liability_overpayment_is_rejected_with_current_balance(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
     import app as app_module
@@ -53,11 +53,26 @@ def test_liability_payment_never_reduces_balance_below_zero(tmp_path, monkeypatc
     importlib.reload(app_module)
     client = app_module.app.test_client()
     client.post("/api/net-worth", json={"item_type": "liability", "name": "Small Loan", "amount": 100})
-    client.post("/api/expenses", json={"description": "Small Loan", "amount": 150, "category": "fixed"})
-    assert client.get("/api/net-worth").get_json()["total_liabilities"] == 0
-    expense_id = client.get("/api/expenses").get_json()[0]["id"]
-    client.delete(f"/api/expenses/{expense_id}")
+    response = client.post("/api/expenses", json={"description": "Small Loan", "amount": 150, "category": "fixed"})
+    assert response.status_code == 400
+    assert "$100.00" in response.get_json()["error"]
     assert client.get("/api/net-worth").get_json()["total_liabilities"] == 100
+    assert client.get("/api/expenses").get_json() == []
+
+
+def test_full_liability_payment_deletes_liability(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+    client.post("/api/net-worth", json={"item_type": "liability", "name": "Final Payment", "amount": 600})
+    response = client.post("/api/expenses", json={"description": "Final Payment", "amount": 600, "category": "savings"})
+    assert response.status_code == 200
+    state = client.get("/api/net-worth").get_json()
+    assert state["liabilities"] == []
+    assert state["total_liabilities"] == 0
 
 
 def test_net_worth_rejects_invalid_items(tmp_path, monkeypatch):

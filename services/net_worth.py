@@ -65,12 +65,21 @@ def apply_liability_payment(conn, description, amount):
     ).fetchone()
     if liability is None:
         return None
-    applied_amount = min(float(amount), float(liability["amount"]))
+    payment_amount = float(amount)
+    balance = float(liability["amount"])
+    if payment_amount > balance:
+        raise ValueError(
+            f"This expense exceeds the current value of {description.strip()}. "
+            f"The current liability balance is ${balance:,.2f}."
+        )
+    if payment_amount == balance:
+        conn.execute("DELETE FROM net_worth_items WHERE id = ?", (liability["id"],))
+        return None
     conn.execute(
-        "UPDATE net_worth_items SET amount = MAX(amount - ?, 0) WHERE id = ?",
-        (applied_amount, liability["id"]),
+        "UPDATE net_worth_items SET amount = amount - ? WHERE id = ?",
+        (payment_amount, liability["id"]),
     )
-    return liability["id"], applied_amount
+    return liability["id"], payment_amount
 
 
 def restore_liability_payment(conn, liability_item_id, amount):

@@ -124,7 +124,11 @@ def normalize_recurrence(recurring, interval=1, unit="month"):
 def add_expense(month_id, description, amount, category, recurring, expense_date=None, recurrence_interval=1, recurrence_unit="month"):
     recurrence_interval, recurrence_unit = normalize_recurrence(recurring, recurrence_interval, recurrence_unit)
     conn = get_connection()
-    payment = apply_liability_payment(conn, description, amount)
+    try:
+        payment = apply_liability_payment(conn, description, amount)
+    except ValueError:
+        conn.close()
+        raise
     liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
         """
@@ -156,7 +160,11 @@ def update_expense(expense_id, description, amount, category, recurring, expense
         conn.close()
         raise ValueError("Expense not found")
     restore_liability_payment(conn, previous["liability_item_id"], previous["liability_payment_amount"] or previous["amount"])
-    payment = apply_liability_payment(conn, description, amount)
+    try:
+        payment = apply_liability_payment(conn, description, amount)
+    except ValueError:
+        conn.close()
+        raise
     liability_item_id, liability_payment_amount = payment or (None, None)
     conn.execute(
         """
