@@ -10,6 +10,157 @@ let visibleExpenseLimit = 5;
 let visibleRecurringExpenseLimit = 5;
 let workspaceSchedule = null;
 let financialReports = [];
+const CATEGORY_ORDER_KEY = "finance-tracker-category-order";
+
+function getCategoryOrder() {
+    const fallback = Object.keys(window.CATEGORY_CONFIG);
+    try {
+        const stored = JSON.parse(localStorage.getItem(CATEGORY_ORDER_KEY));
+        if (!Array.isArray(stored)) return fallback;
+        return [...stored.filter((id) => fallback.includes(id)), ...fallback.filter((id) => !stored.includes(id))];
+    } catch {
+        return fallback;
+    }
+}
+
+function orderCategories(categories) {
+    const positions = new Map(getCategoryOrder().map((id, index) => [id, index]));
+    return [...categories].sort((a, b) => (positions.get(a.id) ?? positions.size) - (positions.get(b.id) ?? positions.size));
+}
+
+function applyCategoryOrder() {
+    const order = getCategoryOrder();
+    const moveChildren = (container, selector) => {
+        if (!container) return;
+        const children = new Map([...container.querySelectorAll(selector)].map((element) => [element.dataset.categoryId, element]));
+        order.forEach((id) => { if (children.has(id)) container.appendChild(children.get(id)); });
+    };
+    moveChildren(document.querySelector(".categories-table"), ".categories-table-row");
+    moveChildren(document.getElementById("categoryCards"), ".category-row");
+}
+
+function saveCategoryOrder() {
+    const rows = [...document.querySelectorAll(".categories-table-row")];
+    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(rows.map((row) => row.dataset.categoryId)));
+    applyCategoryOrder();
+    if (dashboardState.categories?.length) {
+        dashboardState.categories = orderCategories(dashboardState.categories);
+        renderCategoryLegend(dashboardState.categories, Number(dashboardState.summary.income) || 0);
+        renderChart(dashboardState.categories);
+    }
+}
+
+function initializeCategoryReordering() {
+    const table = document.querySelector(".categories-table");
+    if (!table) return;
+    let draggedRow = null;
+    table.querySelectorAll(".category-order").forEach((handle) => {
+        handle.addEventListener("dragstart", (event) => {
+            draggedRow = handle.closest(".categories-table-row");
+            draggedRow.classList.add("is-dragging");
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", draggedRow.dataset.categoryId);
+        });
+        handle.addEventListener("dragend", () => {
+            draggedRow?.classList.remove("is-dragging");
+            table.querySelectorAll(".drag-over").forEach((row) => row.classList.remove("drag-over"));
+            draggedRow = null;
+        });
+    });
+    table.addEventListener("dragover", (event) => {
+        if (!draggedRow) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        const target = event.target.closest(".categories-table-row");
+        table.querySelectorAll(".drag-over").forEach((row) => row.classList.toggle("drag-over", row === target && row !== draggedRow));
+        if (!target || target === draggedRow) return;
+        const afterTarget = event.clientY > target.getBoundingClientRect().top + target.offsetHeight / 2;
+        table.insertBefore(draggedRow, afterTarget ? target.nextSibling : target);
+    });
+    table.addEventListener("drop", (event) => {
+        if (!draggedRow) return;
+        event.preventDefault();
+        saveCategoryOrder();
+    });
+    applyCategoryOrder();
+}
+
+function openCategoryEditor(categoryId) {
+    const category = window.CATEGORY_CONFIG[categoryId];
+    document.getElementById("categoryEditorId").value = categoryId;
+    document.getElementById("categoryEditorLabel").value = category.label;
+    document.getElementById("categoryEditorColorPicker").value = category.color;
+    document.getElementById("categoryEditorColorText").value = category.color.slice(1).toUpperCase();
+    document.getElementById("categoryEditorError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("categoryEditorModal")).show();
+}
+
+function syncCategoryColorFromPicker() {
+    document.getElementById("categoryEditorColorText").value = document.getElementById("categoryEditorColorPicker").value.slice(1).toUpperCase();
+}
+
+function syncCategoryColorFromText() {
+    const value = document.getElementById("categoryEditorColorText").value.trim();
+    if (/^[0-9a-f]{6}$/i.test(value)) document.getElementById("categoryEditorColorPicker").value = `#${value}`;
+}
+
+function refreshCategoryAppearance(category) {
+    window.CATEGORY_CONFIG[category.id] = { ...window.CATEGORY_CONFIG[category.id], label: category.label, color: category.color };
+    const managementRow = document.querySelector(`.categories-table-row[data-category-id="${category.id}"]`);
+    managementRow.querySelector("strong").textContent = category.label;
+    managementRow.querySelector(".category-color i").style.background = category.color;
+    managementRow.querySelector(".category-color").lastChild.textContent = category.color;
+    managementRow.querySelector(".category-actions button").setAttribute("aria-label", `Edit ${category.label}`);
+    managementRow.querySelector(".category-order").setAttribute("aria-label", `Drag to reorder ${category.label}`);
+    const budgetRow = document.querySelector(`#categoryCards [data-category-id="${category.id}"]`);
+    budgetRow.querySelector("strong").textContent = category.label;
+    const icon = budgetRow.querySelector(".category-icon");
+    icon.style.color = category.color;
+    icon.style.background = `${category.color}18`;
+    document.querySelectorAll(`option[value="${category.id}"]`).forEach((option) => { option.textContent = category.label; });
+}
+
+async function saveCategoryEdit(event) {
+    event.preventDefault();
+    const categoryId = document.getElementById("categoryEditorId").value;
+    const error = document.getElementById("categoryEditorError");
+    error.classList.add("d-none");
+    try {
+        const category = await api(`/api/categories/${categoryId}`, { method: "PUT", body: JSON.stringify({
+            label: document.getElementById("categoryEditorLabel").value,
+            color: `#${document.getElementById("categoryEditorColorText").value}`,
+        }) });
+        refreshCategoryAppearance(category);
+        await loadDashboard();
+        bootstrap.Modal.getInstance(document.getElementById("categoryEditorModal")).hide();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
+}
+
+async function deleteCategory(categoryId) {
+    const category = window.CATEGORY_CONFIG[categoryId];
+    const current = currentWorkspaceState?.categories?.find((item) => item.id === categoryId);
+    const returned = Number(current?.total) || 0;
+    const confirmed = window.confirm(
+        `Delete “${category.label}”?\n\nThis cannot be undone. All expenses tied to this category in the current workspace, including recurring expenses, will be deleted. ${money.format(returned)} will return to this workspace's unspent income/surplus as if it was never spent.\n\nPast saved financial reports will not be changed.`
+    );
+    if (!confirmed) return;
+    try {
+        await api(`/api/categories/${categoryId}`, { method: "DELETE" });
+        document.querySelector(`.categories-table-row[data-category-id="${categoryId}"]`)?.remove();
+        document.querySelector(`#categoryCards [data-category-id="${categoryId}"]`)?.remove();
+        document.querySelectorAll(`option[value="${categoryId}"]`).forEach((option) => option.remove());
+        delete window.CATEGORY_CONFIG[categoryId];
+        localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(getCategoryOrder().filter((id) => id !== categoryId)));
+        await loadDashboard();
+        renderExpenseManager();
+        renderRecurringExpensesPage();
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
 
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
@@ -319,6 +470,7 @@ async function api(path, options = {}) {
 
 async function loadDashboard() {
     dashboardState = await api("/api/dashboard");
+    dashboardState.categories = orderCategories(dashboardState.categories);
     currentWorkspaceState = dashboardState;
     renderSummary(dashboardState.summary);
     renderCategories(dashboardState.categories);
@@ -502,6 +654,7 @@ function renderChart(categories) {
     if (categoryChart) {
         categoryChart.data.labels = labels;
         categoryChart.data.datasets[0].data = data;
+        categoryChart.data.datasets[0].backgroundColor = colors;
         categoryChart.update();
         return;
     }
@@ -1136,6 +1289,7 @@ async function deleteExpense(id) {
 }
 
 initializeTheme();
+initializeCategoryReordering();
 initializeDashboard();
 setInterval(async () => {
     const previousRun = workspaceSchedule?.next_run;

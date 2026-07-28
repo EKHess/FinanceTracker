@@ -155,6 +155,70 @@ def test_dashboard_payload_uses_category_ids(tmp_path, monkeypatch):
     assert payload["summary"]["income"] == 0
 
 
+def test_category_edits_update_dashboard_saved_reports_and_pdf(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/expenses", json={"description": "Rent", "amount": 400, "category": "fixed"})
+    report = client.post("/api/scorecards", json={"name": "Before rename", "start_date": "2026-07-01", "end_date": "2026-07-31"}).get_json()
+    response = client.put("/api/categories/fixed", json={"label": "Essentials", "color": "#123ABC"})
+
+    assert response.status_code == 200
+    assert response.get_json()["label"] == "Essentials"
+    dashboard_category = next(item for item in client.get("/api/dashboard").get_json()["categories"] if item["id"] == "fixed")
+    assert dashboard_category["label"] == "Essentials"
+    assert dashboard_category["color"] == "#123ABC"
+    saved_category = next(item for item in client.get(f'/api/scorecards/{report["id"]}').get_json()["categories"] if item["id"] == "fixed")
+    assert saved_category["label"] == "Essentials"
+    assert b"Essentials" in client.get("/api/scorecards/export.pdf").data
+
+
+def test_category_edits_validate_title_and_hex_color(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.put("/api/categories/fixed", json={"label": "", "color": "#123ABC"}).status_code == 400
+    assert client.put("/api/categories/fixed", json={"label": "Essentials", "color": "blue"}).status_code == 400
+
+
+def test_deleting_category_clears_current_expenses_but_preserves_saved_report(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 1000})
+    client.post("/api/expenses", json={"description": "Rent", "amount": 400, "category": "fixed", "recurring": True})
+    report = client.post("/api/scorecards", json={"name": "Saved fixed costs", "start_date": "2026-07-01", "end_date": "2026-07-31"}).get_json()
+    assert client.get("/api/dashboard").get_json()["summary"]["surplus"] == 600
+
+    deleted = client.delete("/api/categories/fixed")
+    assert deleted.status_code == 200
+    assert deleted.get_json()["deleted_expenses"] == 1
+    dashboard = client.get("/api/dashboard").get_json()
+    assert dashboard["summary"]["spending"] == 0
+    assert dashboard["summary"]["surplus"] == 1000
+    assert "fixed" not in {category["id"] for category in dashboard["categories"]}
+    assert client.get("/api/expenses").get_json() == []
+
+    saved = client.get(f'/api/scorecards/{report["id"]}').get_json()
+    fixed = next(category for category in saved["categories"] if category["id"] == "fixed")
+    assert fixed["label"] == "Fixed Costs"
+    assert fixed["color"] == "#0D6EFD"
+    assert fixed["total"] == 400
+    assert b"Fixed Costs" in client.get("/api/scorecards/export.pdf").data
+
+
 def test_workspace_schedule_can_be_customized_and_creates_due_report(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database

@@ -1,5 +1,5 @@
-from config import CATEGORY_CONFIG
 from database import get_connection
+from services.categories import get_category_config
 from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
 from services.global_balance import get_global_balance
@@ -21,7 +21,18 @@ def _scorecard_expenses(scorecard_id):
     return [dict(row) for row in rows]
 
 
-def _categories_from_expenses(expenses):
+def _scorecard_category_config(scorecard_id):
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT category_id, label, color, icon FROM scorecard_categories WHERE scorecard_id = ? ORDER BY display_order, category_id",
+        (scorecard_id,),
+    ).fetchall()
+    conn.close()
+    return {row["category_id"]: {"label": row["label"], "color": row["color"], "icon": row["icon"]} for row in rows}
+
+
+def _categories_from_expenses(scorecard_id, expenses):
+    category_config = _scorecard_category_config(scorecard_id)
     categories = {
         category_id: {
             "id": category_id,
@@ -32,7 +43,7 @@ def _categories_from_expenses(expenses):
             "count": 0,
             "expenses": [],
         }
-        for category_id, config in CATEGORY_CONFIG.items()
+        for category_id, config in category_config.items()
     }
 
     for expense in expenses:
@@ -56,14 +67,15 @@ def _serialize_scorecard(row, include_expenses=False):
     if include_expenses:
         expenses = _scorecard_expenses(scorecard["id"])
         scorecard["expenses"] = expenses
-        scorecard["categories"] = _categories_from_expenses(expenses)
+        category_config = _scorecard_category_config(scorecard["id"])
+        scorecard["categories"] = _categories_from_expenses(scorecard["id"], expenses)
         category_with_most = max(scorecard["categories"], key=lambda category: category["total"], default=None)
         largest_expense = max(expenses, key=lambda expense: float(expense["amount"]), default=None)
         recurring = [expense for expense in expenses if expense["recurring"]]
         recurring_spending = sum(float(expense["amount"]) for expense in recurring)
         scorecard["summary"] = {
             "category_spending": {category["id"]: category["total"] for category in scorecard["categories"]},
-            "largest_expense": ({**largest_expense, "category_label": CATEGORY_CONFIG[largest_expense["category"]]["label"]} if largest_expense else None),
+            "largest_expense": ({**largest_expense, "category_label": category_config[largest_expense["category"]]["label"]} if largest_expense else None),
             "largest_category": ({"id": category_with_most["id"], "label": category_with_most["label"], "total": category_with_most["total"]} if category_with_most else None),
             "expense_count": len(expenses),
             "recurring_count": len(recurring),
@@ -206,6 +218,12 @@ def create_scorecard(month_id, name, start_date, end_date):
     scorecard_id = cursor.lastrowid
 
     cursor.executemany(
+        "INSERT INTO scorecard_categories(scorecard_id, category_id, label, color, icon, display_order) VALUES(?,?,?,?,?,?)",
+        [(scorecard_id, category["id"], category["label"], category["color"], category["icon"], index)
+         for index, category in enumerate(snapshot["categories"])],
+    )
+
+    cursor.executemany(
         """
         INSERT INTO scorecard_expenses (scorecard_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -245,6 +263,7 @@ def delete_scorecard(scorecard_id):
         conn.close()
         return False
     conn.execute("DELETE FROM scorecard_expenses WHERE scorecard_id = ?", (scorecard_id,))
+    conn.execute("DELETE FROM scorecard_categories WHERE scorecard_id = ?", (scorecard_id,))
     conn.execute("DELETE FROM scorecards WHERE id = ?", (scorecard_id,))
     conn.commit()
     conn.close()
@@ -256,6 +275,7 @@ def delete_all_scorecards():
     conn = get_connection()
     count = conn.execute("SELECT COUNT(*) FROM scorecards").fetchone()[0]
     conn.execute("DELETE FROM scorecard_expenses")
+    conn.execute("DELETE FROM scorecard_categories")
     conn.execute("DELETE FROM scorecards")
     conn.commit()
     conn.close()

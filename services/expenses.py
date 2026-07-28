@@ -1,16 +1,17 @@
 import calendar
 from datetime import date, timedelta
 
-from config import CATEGORY_CONFIG
 from database import get_connection
+from services.categories import get_category_config
 from services.net_worth import apply_liability_payment, restore_liability_payment
 
 
 def normalize_category(category):
-    if category in CATEGORY_CONFIG:
+    category_config = get_category_config()
+    if category in category_config:
         return category
 
-    for category_id, config in CATEGORY_CONFIG.items():
+    for category_id, config in category_config.items():
         if category == config["label"]:
             return category_id
 
