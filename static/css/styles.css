@@ -208,6 +208,32 @@ html[data-bs-theme="dark"] .workspace-save-notice { color: #b8c2cc; background: 
 @media (max-width: 1050px) { .global-balance-panel { grid-template-columns: 1fr; }.global-action { padding: 20px 0 0; border-left: 0; border-top: 1px solid var(--line); } }
 @media (max-width: 700px) { .global-action form,.global-action:first-of-type form { grid-template-columns: 1fr; } }
 
+/* Financial calculator directory */
+.calculators-header { margin-bottom: 20px; }
+.calculators-header .btn { padding: 10px 16px; background: white; }
+.calculator-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.calculator-card { min-height: 250px; padding: 24px 22px 18px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 2px 8px rgba(20,43,68,.04); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.calculator-card:hover { transform: translateY(-3px); border-color: #b9d8c9; box-shadow: 0 10px 24px rgba(20,43,68,.09); }
+.calculator-title { display: flex; align-items: center; gap: 16px; }
+.calculator-title h2 { margin: 0; font-size: 17px; font-weight: 750; }
+.calculator-icon { flex: 0 0 58px; width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; font-size: 25px; }
+.calculator-icon.tfsa { color: #087b58; background: #d9f3e8; }
+.calculator-icon.mortgage { color: #d3750c; background: #ffead2; }
+.calculator-icon.retirement { color: #15975d; background: #d8f2e4; }
+.calculator-card > p { max-width: 31ch; margin: 20px 0; color: #41536a; font-size: 15px; line-height: 1.55; }
+.calculator-card footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; color: #43566e; font-size: 13px; }
+.calculator-card footer span { display: flex; align-items: center; gap: 8px; }
+.calculator-card footer > i { color: var(--ink); font-size: 17px; }
+.calculators-notice { margin-top: 24px; padding: 20px; display: flex; gap: 16px; align-items: center; border: 1px solid #cfe2fa; border-radius: 9px; background: #f0f7ff; }
+.calculators-notice > span { flex: 0 0 40px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: white; background: #1677e8; font-size: 18px; }
+.calculators-notice strong { display: block; margin-bottom: 4px; }
+.calculators-notice p { margin: 0; color: #41536a; font-size: 13px; }
+html[data-bs-theme="dark"] .calculator-card,html[data-bs-theme="dark"] .calculators-header .btn { background: #19232e; }
+html[data-bs-theme="dark"] .calculator-card > p,html[data-bs-theme="dark"] .calculator-card footer,html[data-bs-theme="dark"] .calculators-notice p { color: var(--muted); }
+html[data-bs-theme="dark"] .calculators-notice { border-color: #314c6e; background: #151f2b; }
+@media (max-width: 1050px) { .calculator-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 650px) { .calculator-grid { grid-template-columns: 1fr; }.calculator-card { min-height: 225px; }.calculators-notice { align-items: flex-start; } }
+
 /* Settings panels are alphabetized in the template and share one collapsible pattern. */
 .settings-list { max-width: 1100px; display: grid; gap: 14px; }
 .setting-panel { padding: 0; overflow: hidden; }

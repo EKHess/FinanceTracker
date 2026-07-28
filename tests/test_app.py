@@ -3,6 +3,22 @@ import re
 from datetime import datetime
 
 
+def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    response = app_module.app.test_client().get("/")
+
+    assert response.status_code == 200
+    for label in ("Utilities", "TFSA Calculator", "Mortgage Calculator", "Retirement Calculator"):
+        assert label.encode() in response.data
+    assert b'data-page="calculators"' in response.data
+    assert b'id="page-calculators"' in response.data
+
+
 def test_net_worth_crud_and_totals(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database

@@ -23,6 +23,10 @@
         <button data-page="income" onclick="navigateTo('income')"><i class="bi bi-cash-stack"></i>Income Sources</button>
         <button data-page="recurring" onclick="navigateTo('recurring')"><i class="bi bi-arrow-repeat"></i>Recurring Items</button>
     </nav>
+    <div class="nav-label">Utilities</div>
+    <nav class="app-nav">
+        <button data-page="calculators" onclick="navigateTo('calculators')"><i class="bi bi-calculator"></i>Calculators</button>
+    </nav>
     <div class="nav-label">Settings</div>
     <nav class="app-nav">
         <button data-page="categories" onclick="navigateTo('categories')"><i class="bi bi-grid"></i>Categories</button>
@@ -178,6 +182,27 @@
         </div>
     </div>
     <aside class="categories-tip"><span><i class="bi bi-info-lg"></i></span><div><strong>Reorder Categories</strong><p>Click and drag the handle (<i class="bi bi-grip-vertical" aria-hidden="true"></i>) on the right to reorder your categories.</p></div></aside>
+</section>
+<section class="app-page" id="page-calculators">
+    <header class="page-header calculators-header"><div><h1>Calculators</h1><p>Explore financial calculators to help you plan, compare, and achieve your goals.</p></div><button class="btn btn-outline-secondary" type="button" title="Calculator results are estimates for planning purposes."><i class="bi bi-question-circle me-2"></i>How calculators work</button></header>
+    <div class="calculator-grid" aria-label="Available financial calculators">
+        <article class="calculator-card">
+            <div class="calculator-title"><span class="calculator-icon tfsa"><i class="bi bi-piggy-bank"></i></span><h2>TFSA Calculator</h2></div>
+            <p>Project the growth of your Tax-Free Savings Account contributions over time.</p>
+            <footer><span><i class="bi bi-clock"></i>2–3 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </article>
+        <article class="calculator-card">
+            <div class="calculator-title"><span class="calculator-icon mortgage"><i class="bi bi-percent"></i></span><h2>Mortgage Calculator</h2></div>
+            <p>Calculate your monthly mortgage payments, total interest, and amortization schedule.</p>
+            <footer><span><i class="bi bi-clock"></i>3–5 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </article>
+        <article class="calculator-card">
+            <div class="calculator-title"><span class="calculator-icon retirement"><i class="bi bi-cash-stack"></i></span><h2>Retirement Calculator</h2></div>
+            <p>Estimate how much you need to save for retirement and how long your money may last.</p>
+            <footer><span><i class="bi bi-clock"></i>5–8 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </article>
+    </div>
+    <aside class="calculators-notice"><span><i class="bi bi-info-lg"></i></span><div><strong>Important</strong><p>Calculations are estimates only and for informational purposes. Results may vary based on changes in rates, taxes, and your personal circumstances.</p></div></aside>
 </section>
 </main></div>
 <datalist id="liabilityNames"></datalist>
