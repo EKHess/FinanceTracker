@@ -1,6 +1,39 @@
 import importlib
 import re
 from datetime import datetime
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    response = app_module.app.test_client().get("/")
+
+    assert response.status_code == 200
+    for label in ("Utilities", "TFSA Calculator", "Mortgage Calculator", "Retirement Calculator"):
+        assert label.encode() in response.data
+    assert b'data-page="calculators"' in response.data
+    assert b'id="page-calculators"' in response.data
+    assert b"navigateTo('retirement-calculator')" in response.data
+    assert b'id="page-retirement-calculator"' in response.data
+    assert b"Back to Calculators" in response.data
+    for field_id in ("retirementAge", "retirementLifeExpectancy", "retirementAnnualSpending", "retirementIncludeInflation", "retirementInflationRate"):
+        assert f'id="{field_id}"'.encode() in response.data
+
+
+def test_retirement_calculator_implements_inflation_adjusted_savings_formula():
+    script = (ROOT / "static/js/dashboard.js").read_text()
+
+    assert "Math.max(lifeExpectancy - retirementAge, 0)" in script
+    assert "annualSpending * years" in script
+    assert "((1 + inflationRate) ** years - 1) / inflationRate" in script
 
 
 def test_net_worth_crud_and_totals(tmp_path, monkeypatch):

@@ -23,6 +23,10 @@
         <button data-page="income" onclick="navigateTo('income')"><i class="bi bi-cash-stack"></i>Income Sources</button>
         <button data-page="recurring" onclick="navigateTo('recurring')"><i class="bi bi-arrow-repeat"></i>Recurring Items</button>
     </nav>
+    <div class="nav-label">Utilities</div>
+    <nav class="app-nav">
+        <button data-page="calculators" onclick="navigateTo('calculators')"><i class="bi bi-calculator"></i>Calculators</button>
+    </nav>
     <div class="nav-label">Settings</div>
     <nav class="app-nav">
         <button data-page="categories" onclick="navigateTo('categories')"><i class="bi bi-grid"></i>Categories</button>
@@ -178,6 +182,61 @@
         </div>
     </div>
     <aside class="categories-tip"><span><i class="bi bi-info-lg"></i></span><div><strong>Reorder Categories</strong><p>Click and drag the handle (<i class="bi bi-grip-vertical" aria-hidden="true"></i>) on the right to reorder your categories.</p></div></aside>
+</section>
+<section class="app-page" id="page-calculators">
+    <header class="page-header calculators-header"><div><h1>Calculators</h1><p>Explore financial calculators to help you plan, compare, and achieve your goals.</p></div><button class="btn btn-outline-secondary" type="button" title="Calculator results are estimates for planning purposes."><i class="bi bi-question-circle me-2"></i>How calculators work</button></header>
+    <div class="calculator-grid" aria-label="Available financial calculators">
+        <article class="calculator-card">
+            <div class="calculator-title"><span class="calculator-icon tfsa"><i class="bi bi-piggy-bank"></i></span><h2>TFSA Calculator</h2></div>
+            <p>Project the growth of your Tax-Free Savings Account contributions over time.</p>
+            <footer><span><i class="bi bi-clock"></i>2–3 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </article>
+        <article class="calculator-card">
+            <div class="calculator-title"><span class="calculator-icon mortgage"><i class="bi bi-percent"></i></span><h2>Mortgage Calculator</h2></div>
+            <p>Calculate your monthly mortgage payments, total interest, and amortization schedule.</p>
+            <footer><span><i class="bi bi-clock"></i>3–5 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </article>
+        <button class="calculator-card calculator-card-link" type="button" onclick="navigateTo('retirement-calculator')" aria-label="Open Retirement Calculator">
+            <div class="calculator-title"><span class="calculator-icon retirement"><i class="bi bi-cash-stack"></i></span><h2>Retirement Calculator</h2></div>
+            <p>Estimate how much you need to save for retirement and how long your money may last.</p>
+            <footer><span><i class="bi bi-clock"></i>5–8 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
+        </button>
+    </div>
+    <aside class="calculators-notice"><span><i class="bi bi-info-lg"></i></span><div><strong>Important</strong><p>Calculations are estimates only and for informational purposes. Results may vary based on changes in rates, taxes, and your personal circumstances.</p></div></aside>
+</section>
+<section class="app-page" id="page-retirement-calculator">
+    <button class="calculator-back" type="button" onclick="navigateTo('calculators')"><i class="bi bi-arrow-left"></i>Back to Calculators</button>
+    <header class="retirement-page-header"><div><h1>Retirement Calculator</h1><p>Estimate how much you need to save for a comfortable retirement.</p></div><button class="btn btn-outline-secondary" type="button"><i class="bi bi-question-circle me-2"></i>How this calculator works</button></header>
+    <section class="panel retirement-input-card">
+        <div class="retirement-input-row">
+            <span class="retirement-row-icon purple"><i class="bi bi-calendar3"></i></span>
+            <div class="retirement-row-copy"><strong>Age at retirement</strong><span>The age you plan to retire.</span></div>
+            <div class="retirement-row-control"><input id="retirementAge" class="form-control" type="number" min="0" value="65" aria-label="Age at retirement"><span>years</span></div>
+        </div>
+        <div class="retirement-input-row">
+            <span class="retirement-row-icon blue"><i class="bi bi-clock"></i></span>
+            <div class="retirement-row-copy"><strong>Life expectancy (in years)</strong><span>How long you expect to live.</span></div>
+            <div class="retirement-row-control"><input id="retirementLifeExpectancy" class="form-control" type="number" min="0" value="85" aria-label="Life expectancy in years"><span>years</span></div>
+        </div>
+        <div class="retirement-input-row spending-row">
+            <span class="retirement-row-icon green"><i class="bi bi-currency-dollar"></i></span>
+            <div class="retirement-row-copy"><strong>How much money do you need each year to retire comfortably?</strong><span>Your estimated annual spending in today's dollars.</span></div>
+            <div class="retirement-row-control money"><input id="retirementAnnualSpending" class="form-control" type="text" inputmode="decimal" value="60,000.00" aria-label="Estimated annual spending"><span>$ / year</span></div>
+            <div class="retirement-inflation"><label class="inflation-toggle"><input id="retirementIncludeInflation" type="checkbox" checked><span></span></label><div><strong>Include inflation</strong><small>Adjust future spending for inflation.</small></div><label for="retirementInflationRate">Estimated annual inflation rate (%)</label><input id="retirementInflationRate" class="form-control" type="number" min="0" step="0.01" value="2.50"><span>%</span></div>
+        </div>
+        <p class="retirement-input-hint"><i class="bi bi-info-circle"></i>If you're unsure, just start with your current annual income.</p>
+    </section>
+    <section class="retirement-total-card">
+        <div class="retirement-total-heading"><span><i class="bi bi-piggy-bank"></i></span><div><strong>Total amount you need to retire</strong><h2 id="retirementRequiredSavings">$1,532,679.46</h2></div></div>
+        <p>Here's how much you'll need to retire based on your age, life expectancy, spending, and inflation assumption.</p>
+        <div class="retirement-metrics">
+            <div><span class="retirement-metric-icon"><i class="bi bi-calendar3"></i></span><section><small>Years in retirement</small><strong id="retirementYears">20</strong><span>years</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-cash"></i></span><section><small>Annual spending</small><strong id="retirementSpendingSummary">$60,000.00</strong><span>in today's dollars</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-graph-up-arrow"></i></span><section><small>Inflation assumption</small><strong id="retirementInflationSummary">2.50%</strong><span>average annually</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-layers"></i></span><section><small>Amount in today's dollars</small><strong id="retirementTodayTotal">$1,200,000.00</strong><span>total needed</span></section></div>
+        </div>
+    </section>
+    <aside class="retirement-note"><i class="bi bi-info-circle"></i><p>This calculation does not include taxes, investment returns, or other income sources.</p></aside>
 </section>
 </main></div>
 <datalist id="liabilityNames"></datalist>
