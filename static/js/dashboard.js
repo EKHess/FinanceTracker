@@ -956,6 +956,21 @@ function formatExpenseDate(value) {
     return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(year, month - 1, day));
 }
 
+function expenseDescription(expense) {
+    const marker = expense.global_type === "draw"
+        ? '<i class="bi bi-globe2 global-surplus-marker" aria-label="Allocated from global surplus" title="Allocated from global surplus"></i>'
+        : "";
+    return `${escapeHtml(expense.description)}${marker}`;
+}
+
+function renderGlobalSurplusCaption(element, expenses) {
+    const hasGlobalDraw = expenses.some((expense) => expense.global_type === "draw");
+    element.innerHTML = hasGlobalDraw
+        ? '<i class="bi bi-globe2 global-surplus-marker"></i> Expenses marked with the globe icon came from global surplus, not income in this workspace period.'
+        : "";
+    element.classList.toggle("d-none", !hasGlobalDraw);
+}
+
 function syncRecurrenceFields(prefix) {
     const recurring = document.getElementById(`${prefix}Recurring`).checked;
     document.getElementById(`${prefix}RecurrenceFields`).classList.toggle("d-none", !recurring);
@@ -1018,9 +1033,10 @@ function renderExpenseManager() {
     document.getElementById("expenseManagerRows").innerHTML = visible.length ? visible.map((expense) => {
         const category = window.CATEGORY_CONFIG[expense.category] || { label: expense.category, color: "#718096" };
         const globalClass = expense.global_type ? ` global-expense ${expense.global_type}` : "";
-        const badge = expense.global_type === "pledge" ? '<span class="global-expense-badge"><i class="bi bi-shield-check"></i> Deficit pledge</span>' : expense.global_type === "draw" ? '<span class="global-expense-badge"><i class="bi bi-globe2"></i> From surplus</span>' : "";
-        return `<div class="expense-manager-row${globalClass}"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${escapeHtml(expense.description)}${badge}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
+        const badge = expense.global_type === "pledge" ? '<span class="global-expense-badge"><i class="bi bi-shield-check"></i> Deficit pledge</span>' : "";
+        return `<div class="expense-manager-row${globalClass}"><span>${formatExpenseDate(expense.expense_date)}</span><strong>${expenseDescription(expense)}${badge}</strong><span class="expense-category-label"><i style="background:${category.color}"></i>${escapeHtml(category.label)}</span><span>${money.format(expense.amount)}</span><span class="recurrence-label">${recurrenceLabel(expense)}</span><span class="expense-row-actions"><button aria-label="Edit expense" onclick="editManagedExpense(${expense.id})"><i class="bi bi-pencil"></i></button><button aria-label="Delete expense" onclick="deleteManagedExpense(${expense.id})"><i class="bi bi-trash"></i></button></span></div>`;
     }).join("") : '<div class="expense-manager-empty">No matching expenses.</div>';
+    renderGlobalSurplusCaption(document.getElementById("expenseManagerGlobalCaption"), expenses);
     const remaining = expenses.length - visible.length;
     const more = document.getElementById("showMoreExpenses");
     more.classList.toggle("d-none", remaining <= 0);
@@ -1101,13 +1117,14 @@ async function refreshCategory() {
     expenses.forEach((expense) => {
         total += expense.amount;
         const row = document.createElement("tr");
-        row.innerHTML = `<td>${formatExpenseDate(expense.expense_date)}</td><td>${escapeHtml(expense.description)}</td><td>${money.format(expense.amount)}</td><td>${recurrenceLabel(expense)}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
+        row.innerHTML = `<td>${formatExpenseDate(expense.expense_date)}</td><td>${expenseDescription(expense)}</td><td>${money.format(expense.amount)}</td><td>${recurrenceLabel(expense)}</td><td class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></td>`;
         row.querySelector(".btn-outline-primary").addEventListener("click", () => toggleExpenseForm(expense));
         row.querySelector(".btn-outline-danger").addEventListener("click", () => deleteExpense(expense.id));
         table.appendChild(row);
     });
 
     document.getElementById("categoryTotal").textContent = money.format(total);
+    renderGlobalSurplusCaption(document.getElementById("categoryGlobalCaption"), expenses);
     await loadDashboard();
 }
 
@@ -1331,7 +1348,7 @@ function renderScorecardDetails(scorecard) {
         <section class="report-summary" aria-label="Financial report summary">
             <div class="report-summary-primary"><article><span>Total spending</span><strong>${money.format(scorecard.total_spending)}</strong></article><article><span>Surplus / Deficit</span><strong class="${scorecard.surplus < 0 ? "negative" : "positive"}">${money.format(scorecard.surplus)}</strong></article><article><span>Global Surplus / Deficit</span><strong class="${scorecard.global_balance < 0 ? "negative" : "positive"}">${money.format(scorecard.global_balance)}</strong><small>At time of save</small></article><article><span>Net Worth</span><strong class="${(scorecard.net_worth || 0) < 0 ? "negative" : "positive"}">${scorecard.net_worth === null ? "Not captured" : money.format(scorecard.net_worth)}</strong><small>At time of save</small></article></div>
             <div class="report-category-totals"><div class="summary-section-label">Spending by category</div>${categoryTotals}</div>
-            <div class="report-summary-insights"><article><i class="bi bi-arrow-up-right-circle"></i><div><span>Largest expense</span><strong>${largestExpense ? `${escapeHtml(largestExpense.description)} · ${money.format(largestExpense.amount)}` : "No expenses"}</strong><small>${largestExpense ? escapeHtml(largestExpense.category_label) : ""}</small></div></article><article><i class="bi bi-pie-chart"></i><div><span>Largest category</span><strong>${largestCategory ? escapeHtml(largestCategory.label) : "No expenses"}</strong><small>${largestCategory ? money.format(largestCategory.total) : ""}</small></div></article><article><i class="bi bi-receipt"></i><div><span>Total expenses</span><strong>${scorecard.summary.expense_count}</strong><small>Saved charges</small></div></article><article><i class="bi bi-arrow-repeat"></i><div><span>Recurring expenses</span><strong>${scorecard.summary.recurring_count}</strong><small>${scorecard.summary.recurring_percent.toFixed(1)}% of spending</small></div></article></div>
+            <div class="report-summary-insights"><article><i class="bi bi-arrow-up-right-circle"></i><div><span>Largest expense</span><strong>${largestExpense ? `${expenseDescription(largestExpense)} · ${money.format(largestExpense.amount)}` : "No expenses"}</strong><small>${largestExpense ? escapeHtml(largestExpense.category_label) : ""}</small></div></article><article><i class="bi bi-pie-chart"></i><div><span>Largest category</span><strong>${largestCategory ? escapeHtml(largestCategory.label) : "No expenses"}</strong><small>${largestCategory ? money.format(largestCategory.total) : ""}</small></div></article><article><i class="bi bi-receipt"></i><div><span>Total expenses</span><strong>${scorecard.summary.expense_count}</strong><small>Saved charges</small></div></article><article><i class="bi bi-arrow-repeat"></i><div><span>Recurring expenses</span><strong>${scorecard.summary.recurring_count}</strong><small>${scorecard.summary.recurring_percent.toFixed(1)}% of spending</small></div></article></div>
         </section>
         <div class="card mb-3 scorecard-editor-card">
             <div class="card-body">
@@ -1376,8 +1393,9 @@ function renderScorecardDetails(scorecard) {
         section.className = "card category-summary report-category-collapse mb-3";
         section.style.setProperty("--category-color", category.color);
         const collapseId = `report-category-${scorecard.id}-${category.id}`;
-        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${escapeHtml(expense.description)}</span><span>${expense.recurring ? recurrenceLabel(expense) : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
-        section.innerHTML = `<button class="report-category-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false"><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><span><strong>${category.label}</strong><small>${category.count} charge${category.count === 1 ? "" : "s"}</small></span><b>${money.format(category.total)}</b><i class="bi bi-chevron-down category-chevron"></i></button><div class="collapse" id="${collapseId}"><div class="report-category-body">${rows}</div></div>`;
+        const rows = category.expenses.length ? category.expenses.map((expense) => `<div class="expense-row border-top py-2"><span>${expenseDescription(expense)}</span><span>${expense.recurring ? recurrenceLabel(expense) : "One-time"}</span><strong>${money.format(expense.amount)}</strong><span class="text-end"><button class="btn btn-sm btn-outline-primary me-1">Edit</button><button class="btn btn-sm btn-outline-danger">Delete</button></span></div>`).join("") : '<div class="text-muted border-top py-2">No charges in this category.</div>';
+        const globalCaption = category.expenses.some((expense) => expense.global_type === "draw") ? `<p class="global-surplus-caption"><i class="bi bi-globe2 global-surplus-marker"></i> Expenses marked with the globe icon came from global surplus, not income in this workspace period.</p>` : "";
+        section.innerHTML = `<button class="report-category-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false"><span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><span><strong>${category.label}</strong><small>${category.count} charge${category.count === 1 ? "" : "s"}</small></span><b>${money.format(category.total)}</b><i class="bi bi-chevron-down category-chevron"></i></button><div class="collapse" id="${collapseId}"><div class="report-category-body">${rows}${globalCaption}</div></div>`;
         section.querySelectorAll(".btn-outline-primary").forEach((button, index) => button.addEventListener("click", () => showScorecardExpenseForm(category.expenses[index])));
         section.querySelectorAll(".btn-outline-danger").forEach((button, index) => button.addEventListener("click", () => deleteScorecardExpense(category.expenses[index].id)));
         details.appendChild(section);

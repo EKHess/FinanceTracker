@@ -273,6 +273,13 @@ def test_global_surplus_draw_is_capped_and_allocated_to_category(tmp_path, monke
     assert dashboard["summary"]["surplus"] == 550
     assert client.post("/api/global-balance/draw", json={"amount": 276, "category": "fixed"}).status_code == 400
 
+    saved = client.post("/api/scorecards", json={"name": "Draw term", "start_date": "2026-02-01", "end_date": "2026-02-28"})
+    assert saved.status_code == 201
+    saved_draw = next(expense for expense in saved.get_json()["expenses"] if expense["global_type"] == "draw")
+    assert saved_draw["description"] == "Weekend away"
+    pdf = client.get("/api/scorecards/export.pdf").data
+    assert b"Marked expenses came from global surplus" in pdf
+
 
 def test_global_balance_ignores_unsaved_workspace_result(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

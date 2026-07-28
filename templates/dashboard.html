@@ -183,7 +183,7 @@
                 </form>
                 <div id="quickExpenseError" class="alert alert-danger mt-3 d-none"></div>
                 <div class="existing-expenses-header"><h5>Existing Expenses for {{ month_name }} {{ month["year"] }}</h5><div class="expense-list-tools"><div class="search-wrap"><i class="bi bi-search"></i><input id="expenseSearch" class="form-control" placeholder="Search expenses..." oninput="handleExpenseSearch()"></div><select id="expenseSort" class="form-select" onchange="renderExpenseManager()"><option value="date">Date</option><option value="description">Description</option><option value="category">Category</option><option value="amount">Amount</option></select></div></div>
-                <div class="expense-manager-table"><div class="expense-manager-head"><span>Date</span><span>Description</span><span>Category</span><span>Amount</span><span>Recurring</span><span></span></div><div id="expenseManagerRows"></div><button id="showMoreExpenses" class="show-more-expenses d-none" onclick="showMoreExpenses()"></button></div>
+                <div class="expense-manager-table"><div class="expense-manager-head"><span>Date</span><span>Description</span><span>Category</span><span>Amount</span><span>Recurring</span><span></span></div><div id="expenseManagerRows"></div><button id="showMoreExpenses" class="show-more-expenses d-none" onclick="showMoreExpenses()"></button><p id="expenseManagerGlobalCaption" class="global-surplus-caption d-none"></p></div>
             </div>
             <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success px-4" data-bs-dismiss="modal"><i class="bi bi-check-lg me-2"></i>Save Expenses</button></div>
         </div>
@@ -216,6 +216,7 @@
                     <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Recurring</th><th class="text-end">Actions</th></tr></thead>
                     <tbody id="expenseTable"></tbody>
                 </table>
+                <p id="categoryGlobalCaption" class="global-surplus-caption d-none"></p>
             </div>
         </div>
     </div>
