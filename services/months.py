@@ -1,5 +1,5 @@
-from config import CATEGORY_CONFIG
 from database import get_connection
+from services.categories import get_category_config
 from services.finance import category_totals, dashboard_summary
 
 
@@ -28,5 +28,5 @@ def finalize_month(month_id):
 def category_options():
     return [
         {"id": category_id, **config}
-        for category_id, config in CATEGORY_CONFIG.items()
+        for category_id, config in get_category_config().items()
     ]

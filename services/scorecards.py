@@ -1,5 +1,5 @@
-from config import CATEGORY_CONFIG
 from database import get_connection
+from services.categories import get_category_config
 from services.expenses import normalize_category, normalize_expense_date, normalize_recurrence
 from services.finance import dashboard_summary
 from services.global_balance import get_global_balance
@@ -22,6 +22,7 @@ def _scorecard_expenses(scorecard_id):
 
 
 def _categories_from_expenses(expenses):
+    category_config = get_category_config()
     categories = {
         category_id: {
             "id": category_id,
@@ -32,7 +33,7 @@ def _categories_from_expenses(expenses):
             "count": 0,
             "expenses": [],
         }
-        for category_id, config in CATEGORY_CONFIG.items()
+        for category_id, config in category_config.items()
     }
 
     for expense in expenses:
@@ -63,7 +64,7 @@ def _serialize_scorecard(row, include_expenses=False):
         recurring_spending = sum(float(expense["amount"]) for expense in recurring)
         scorecard["summary"] = {
             "category_spending": {category["id"]: category["total"] for category in scorecard["categories"]},
-            "largest_expense": ({**largest_expense, "category_label": CATEGORY_CONFIG[largest_expense["category"]]["label"]} if largest_expense else None),
+            "largest_expense": ({**largest_expense, "category_label": get_category_config()[largest_expense["category"]]["label"]} if largest_expense else None),
             "largest_category": ({"id": category_with_most["id"], "label": category_with_most["label"], "total": category_with_most["total"]} if category_with_most else None),
             "expense_count": len(expenses),
             "recurring_count": len(recurring),

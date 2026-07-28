@@ -1,10 +1,11 @@
-from config import CATEGORY_CONFIG
 from database import get_connection
+from services.categories import get_category_config
 from services.expenses import get_expenses, get_workspace_expenses
 from services.global_balance import get_global_balance
 
 
 def _empty_categories():
+    category_config = get_category_config()
     return {
         category_id: {
             "id": category_id,
@@ -14,7 +15,7 @@ def _empty_categories():
             "total": 0.0,
             "count": 0,
         }
-        for category_id, config in CATEGORY_CONFIG.items()
+        for category_id, config in category_config.items()
     }
 
 

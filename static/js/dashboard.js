@@ -85,6 +85,60 @@ function initializeCategoryReordering() {
     applyCategoryOrder();
 }
 
+function openCategoryEditor(categoryId) {
+    const category = window.CATEGORY_CONFIG[categoryId];
+    document.getElementById("categoryEditorId").value = categoryId;
+    document.getElementById("categoryEditorLabel").value = category.label;
+    document.getElementById("categoryEditorColorPicker").value = category.color;
+    document.getElementById("categoryEditorColorText").value = category.color.slice(1).toUpperCase();
+    document.getElementById("categoryEditorError").classList.add("d-none");
+    new bootstrap.Modal(document.getElementById("categoryEditorModal")).show();
+}
+
+function syncCategoryColorFromPicker() {
+    document.getElementById("categoryEditorColorText").value = document.getElementById("categoryEditorColorPicker").value.slice(1).toUpperCase();
+}
+
+function syncCategoryColorFromText() {
+    const value = document.getElementById("categoryEditorColorText").value.trim();
+    if (/^[0-9a-f]{6}$/i.test(value)) document.getElementById("categoryEditorColorPicker").value = `#${value}`;
+}
+
+function refreshCategoryAppearance(category) {
+    window.CATEGORY_CONFIG[category.id] = { ...window.CATEGORY_CONFIG[category.id], label: category.label, color: category.color };
+    const managementRow = document.querySelector(`.categories-table-row[data-category-id="${category.id}"]`);
+    managementRow.querySelector("strong").textContent = category.label;
+    managementRow.querySelector(".category-color i").style.background = category.color;
+    managementRow.querySelector(".category-color").lastChild.textContent = category.color;
+    managementRow.querySelector(".category-actions button").setAttribute("aria-label", `Edit ${category.label}`);
+    managementRow.querySelector(".category-order").setAttribute("aria-label", `Drag to reorder ${category.label}`);
+    const budgetRow = document.querySelector(`#categoryCards [data-category-id="${category.id}"]`);
+    budgetRow.querySelector("strong").textContent = category.label;
+    const icon = budgetRow.querySelector(".category-icon");
+    icon.style.color = category.color;
+    icon.style.background = `${category.color}18`;
+    document.querySelectorAll(`option[value="${category.id}"]`).forEach((option) => { option.textContent = category.label; });
+}
+
+async function saveCategoryEdit(event) {
+    event.preventDefault();
+    const categoryId = document.getElementById("categoryEditorId").value;
+    const error = document.getElementById("categoryEditorError");
+    error.classList.add("d-none");
+    try {
+        const category = await api(`/api/categories/${categoryId}`, { method: "PUT", body: JSON.stringify({
+            label: document.getElementById("categoryEditorLabel").value,
+            color: `#${document.getElementById("categoryEditorColorText").value}`,
+        }) });
+        refreshCategoryAppearance(category);
+        await loadDashboard();
+        bootstrap.Modal.getInstance(document.getElementById("categoryEditorModal")).hide();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
+}
+
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
     document.documentElement.dataset.bsTheme = theme;
@@ -577,6 +631,7 @@ function renderChart(categories) {
     if (categoryChart) {
         categoryChart.data.labels = labels;
         categoryChart.data.datasets[0].data = data;
+        categoryChart.data.datasets[0].backgroundColor = colors;
         categoryChart.update();
         return;
     }

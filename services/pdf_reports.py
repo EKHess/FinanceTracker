@@ -1,8 +1,5 @@
 from datetime import datetime
 
-from config import CATEGORY_CONFIG
-
-
 PAGE_WIDTH = 612
 PAGE_HEIGHT = 792
 MARGIN = 44

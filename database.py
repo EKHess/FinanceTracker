@@ -156,6 +156,22 @@ def initialize_database():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS categories (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        color TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        display_order INTEGER NOT NULL
+    )
+    """)
+    from config import CATEGORY_CONFIG
+    for display_order, (category_id, category) in enumerate(CATEGORY_CONFIG.items()):
+        cursor.execute(
+            "INSERT OR IGNORE INTO categories(id, label, color, icon, display_order) VALUES(?,?,?,?,?)",
+            (category_id, category["label"], category["color"].upper(), category["icon"], display_order),
+        )
+
     _ensure_column(cursor, "months", "income_mode", "TEXT NOT NULL DEFAULT 'simple'")
     _ensure_column(cursor, "months", "income_period_duration", "REAL NOT NULL DEFAULT 1")
     _ensure_column(cursor, "months", "income_period_unit", "TEXT NOT NULL DEFAULT 'month'")
