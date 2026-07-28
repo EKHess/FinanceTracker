@@ -184,6 +184,40 @@ function navigateTo(page) {
     if (page === "recurring") renderRecurringExpensesPage();
     if (page === "reports") refreshScorecardList();
     if (page === "net-worth") loadNetWorth();
+    if (page === "retirement-calculator") updateRetirementCalculator();
+}
+
+function retirementInputNumber(id) {
+    const value = document.getElementById(id)?.value.replace?.(/,/g, "") ?? document.getElementById(id)?.value;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function updateRetirementCalculator() {
+    const retirementAge = retirementInputNumber("retirementAge");
+    const lifeExpectancy = retirementInputNumber("retirementLifeExpectancy");
+    const annualSpending = retirementInputNumber("retirementAnnualSpending");
+    const includeInflation = document.getElementById("retirementIncludeInflation")?.checked ?? false;
+    const inflationPercent = includeInflation ? retirementInputNumber("retirementInflationRate") : 0;
+    const inflationRate = inflationPercent / 100;
+    const years = Math.max(lifeExpectancy - retirementAge, 0);
+    const requiredSavings = inflationRate === 0
+        ? annualSpending * years
+        : annualSpending * (((1 + inflationRate) ** years - 1) / inflationRate);
+
+    document.getElementById("retirementYears").textContent = String(years);
+    document.getElementById("retirementSpendingSummary").textContent = money.format(annualSpending);
+    document.getElementById("retirementInflationSummary").textContent = `${inflationPercent.toFixed(2)}%`;
+    document.getElementById("retirementTodayTotal").textContent = money.format(annualSpending * years);
+    document.getElementById("retirementRequiredSavings").textContent = money.format(requiredSavings);
+    document.getElementById("retirementInflationRate").disabled = !includeInflation;
+}
+
+function initializeRetirementCalculator() {
+    const inputs = ["retirementAge", "retirementLifeExpectancy", "retirementAnnualSpending", "retirementIncludeInflation", "retirementInflationRate"];
+    inputs.forEach((id) => document.getElementById(id)?.addEventListener("input", updateRetirementCalculator));
+    document.getElementById("retirementIncludeInflation")?.addEventListener("change", updateRetirementCalculator);
+    updateRetirementCalculator();
 }
 
 let netWorthState = { assets: [], liabilities: [] };
@@ -1290,6 +1324,7 @@ async function deleteExpense(id) {
 
 initializeTheme();
 initializeCategoryReordering();
+initializeRetirementCalculator();
 initializeDashboard();
 setInterval(async () => {
     const previousRun = workspaceSchedule?.next_run;

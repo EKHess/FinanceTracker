@@ -211,29 +211,29 @@
         <div class="retirement-input-row">
             <span class="retirement-row-icon purple"><i class="bi bi-calendar3"></i></span>
             <div class="retirement-row-copy"><strong>Age at retirement</strong><span>The age you plan to retire.</span></div>
-            <div class="retirement-row-control"><input class="form-control" type="number" value="65" aria-label="Age at retirement"><span>years</span></div>
+            <div class="retirement-row-control"><input id="retirementAge" class="form-control" type="number" min="0" value="65" aria-label="Age at retirement"><span>years</span></div>
         </div>
         <div class="retirement-input-row">
             <span class="retirement-row-icon blue"><i class="bi bi-clock"></i></span>
             <div class="retirement-row-copy"><strong>Life expectancy (in years)</strong><span>How long you expect to live.</span></div>
-            <div class="retirement-row-control"><input class="form-control" type="number" value="85" aria-label="Life expectancy in years"><span>years</span></div>
+            <div class="retirement-row-control"><input id="retirementLifeExpectancy" class="form-control" type="number" min="0" value="85" aria-label="Life expectancy in years"><span>years</span></div>
         </div>
         <div class="retirement-input-row spending-row">
             <span class="retirement-row-icon green"><i class="bi bi-currency-dollar"></i></span>
             <div class="retirement-row-copy"><strong>How much money do you need each year to retire comfortably?</strong><span>Your estimated annual spending in today's dollars.</span></div>
-            <div class="retirement-row-control money"><input class="form-control" type="text" value="60,000.00" aria-label="Estimated annual spending"><span>USD / year</span></div>
-            <div class="retirement-inflation"><label class="inflation-toggle"><input type="checkbox" checked><span></span></label><div><strong>Include inflation</strong><small>Adjust future spending for inflation.</small></div><label>Estimated annual inflation rate (%)</label><input class="form-control" type="number" value="2.50" aria-label="Estimated annual inflation rate"><span>%</span></div>
+            <div class="retirement-row-control money"><input id="retirementAnnualSpending" class="form-control" type="text" inputmode="decimal" value="60,000.00" aria-label="Estimated annual spending"><span>USD / year</span></div>
+            <div class="retirement-inflation"><label class="inflation-toggle"><input id="retirementIncludeInflation" type="checkbox" checked><span></span></label><div><strong>Include inflation</strong><small>Adjust future spending for inflation.</small></div><label for="retirementInflationRate">Estimated annual inflation rate (%)</label><input id="retirementInflationRate" class="form-control" type="number" min="0" step="0.01" value="2.50"><span>%</span></div>
         </div>
         <p class="retirement-input-hint"><i class="bi bi-info-circle"></i>If you're unsure, just start with your current annual income.</p>
     </section>
     <section class="retirement-total-card">
-        <div class="retirement-total-heading"><span><i class="bi bi-piggy-bank"></i></span><div><strong>Total amount you need to retire</strong><h2>$1,627,459.37</h2></div></div>
+        <div class="retirement-total-heading"><span><i class="bi bi-piggy-bank"></i></span><div><strong>Total amount you need to retire</strong><h2 id="retirementRequiredSavings">$1,532,679.46</h2></div></div>
         <p>Here's how much you'll need to retire based on your age, life expectancy, spending, and inflation assumption.</p>
         <div class="retirement-metrics">
-            <div><span class="retirement-metric-icon"><i class="bi bi-calendar3"></i></span><section><small>Years in retirement</small><strong>20</strong><span>years</span></section></div>
-            <div><span class="retirement-metric-icon"><i class="bi bi-cash"></i></span><section><small>Annual spending</small><strong>$60,000.00</strong><span>in today's dollars</span></section></div>
-            <div><span class="retirement-metric-icon"><i class="bi bi-graph-up-arrow"></i></span><section><small>Inflation assumption</small><strong>2.50%</strong><span>average annually</span></section></div>
-            <div><span class="retirement-metric-icon"><i class="bi bi-layers"></i></span><section><small>Amount in today's dollars</small><strong>$1,627,459.37</strong><span>total needed</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-calendar3"></i></span><section><small>Years in retirement</small><strong id="retirementYears">20</strong><span>years</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-cash"></i></span><section><small>Annual spending</small><strong id="retirementSpendingSummary">$60,000.00</strong><span>in today's dollars</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-graph-up-arrow"></i></span><section><small>Inflation assumption</small><strong id="retirementInflationSummary">2.50%</strong><span>average annually</span></section></div>
+            <div><span class="retirement-metric-icon"><i class="bi bi-layers"></i></span><section><small>Amount in today's dollars</small><strong id="retirementTodayTotal">$1,200,000.00</strong><span>total needed</span></section></div>
         </div>
     </section>
     <aside class="retirement-note"><i class="bi bi-info-circle"></i><p>This calculation does not include taxes, investment returns, or other income sources.</p></aside>
