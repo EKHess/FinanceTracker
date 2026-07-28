@@ -17,6 +17,9 @@ def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
         assert label.encode() in response.data
     assert b'data-page="calculators"' in response.data
     assert b'id="page-calculators"' in response.data
+    assert b"navigateTo('retirement-calculator')" in response.data
+    assert b'id="page-retirement-calculator"' in response.data
+    assert b"Back to Calculators" in response.data
 
 
 def test_net_worth_crud_and_totals(tmp_path, monkeypatch):

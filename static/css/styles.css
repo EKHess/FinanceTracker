@@ -213,6 +213,7 @@ html[data-bs-theme="dark"] .workspace-save-notice { color: #b8c2cc; background: 
 .calculators-header .btn { padding: 10px 16px; background: white; }
 .calculator-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
 .calculator-card { min-height: 250px; padding: 24px 22px 18px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: white; box-shadow: 0 2px 8px rgba(20,43,68,.04); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.calculator-card-link { width: 100%; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .calculator-card:hover { transform: translateY(-3px); border-color: #b9d8c9; box-shadow: 0 10px 24px rgba(20,43,68,.09); }
 .calculator-title { display: flex; align-items: center; gap: 16px; }
 .calculator-title h2 { margin: 0; font-size: 17px; font-weight: 750; }
@@ -233,6 +234,43 @@ html[data-bs-theme="dark"] .calculator-card > p,html[data-bs-theme="dark"] .calc
 html[data-bs-theme="dark"] .calculators-notice { border-color: #314c6e; background: #151f2b; }
 @media (max-width: 1050px) { .calculator-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 650px) { .calculator-grid { grid-template-columns: 1fr; }.calculator-card { min-height: 225px; }.calculators-notice { align-items: flex-start; } }
+
+/* Individual calculators use this detail-page pattern. */
+.calculator-back { margin: 0 0 22px; padding: 0; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #536579; font-size: 14px; font-weight: 650; }
+.calculator-back:hover { color: var(--green); }
+.retirement-header { margin-bottom: 28px; display: flex; align-items: center; gap: 17px; }
+.retirement-header h1 { margin: 0 0 5px; font-size: 28px; font-weight: 780; letter-spacing: -.04em; }
+.retirement-header p { margin: 0; color: var(--muted); font-size: 14px; }
+.retirement-layout { display: grid; grid-template-columns: minmax(0,1.35fr) minmax(330px,.8fr); gap: 22px; align-items: start; }
+.retirement-form-panel { padding: 28px; }
+.retirement-section-heading { margin-bottom: 18px; display: flex; gap: 12px; align-items: center; }
+.retirement-section-heading > span { flex: 0 0 30px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: #087b58; background: #d9f3e8; font-size: 13px; font-weight: 800; }
+.retirement-section-heading h2 { margin: 0 0 3px; font-size: 17px; }
+.retirement-section-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.retirement-fields { display: grid; gap: 16px; }
+.retirement-fields.two-column { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.retirement-fields label { display: grid; gap: 8px; color: #405269; font-size: 13px; font-weight: 650; }
+.retirement-fields .form-control,.retirement-fields .input-group-text { min-height: 44px; }
+.retirement-divider { height: 1px; margin: 25px 0; background: var(--line); }
+.retirement-calculate { width: 100%; min-height: 46px; margin-top: 25px; font-weight: 700; }
+.retirement-results { display: grid; gap: 16px; }
+.retirement-result-hero { padding: 27px; border-radius: 11px; color: white; background: linear-gradient(145deg,#087b58,#15975d); box-shadow: 0 10px 28px rgba(9,104,74,.18); }
+.retirement-result-hero > span,.retirement-result-hero > small { display: block; color: #d7f3e7; font-size: 12px; }
+.retirement-result-hero > strong { display: block; margin: 8px 0 3px; font-size: 34px; line-height: 1.1; }
+.retirement-progress { height: 8px; margin: 22px 0 15px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.25); }
+.retirement-progress span { display: block; width: 82%; height: 100%; border-radius: inherit; background: white; }
+.retirement-result-hero p { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.retirement-summary { padding: 22px; }
+.retirement-summary h2 { margin-bottom: 16px; font-size: 16px; }
+.retirement-summary > div { padding: 7px 0; display: flex; justify-content: space-between; gap: 15px; color: #536579; font-size: 13px; }
+.retirement-summary strong { color: var(--ink); }.retirement-summary strong.positive { color: var(--green); }
+.retirement-summary hr { margin: 10px 0; border-color: var(--line); opacity: 1; }
+.retirement-tip { padding: 17px; display: flex; gap: 12px; border: 1px solid #f2dfad; border-radius: 9px; background: #fff9e9; }
+.retirement-tip > i { color: #cf8b0b; font-size: 20px; }.retirement-tip strong { font-size: 13px; }.retirement-tip p { margin: 4px 0 0; color: #6a604b; font-size: 12px; line-height: 1.45; }
+.retirement-disclaimer { margin-top: 22px; }
+html[data-bs-theme="dark"] .retirement-tip { border-color: #5d4c28; background: #292416; } html[data-bs-theme="dark"] .retirement-tip p { color: var(--muted); }
+@media (max-width: 1000px) { .retirement-layout { grid-template-columns: 1fr; }.retirement-results { grid-template-columns: repeat(2,minmax(0,1fr)); }.retirement-result-hero { grid-row: span 2; } }
+@media (max-width: 650px) { .retirement-header { align-items: flex-start; }.retirement-fields.two-column,.retirement-results { grid-template-columns: 1fr; }.retirement-result-hero { grid-row: auto; }.retirement-form-panel { padding: 21px; } }
 
 /* Settings panels are alphabetized in the template and share one collapsible pattern. */
 .settings-list { max-width: 1100px; display: grid; gap: 14px; }
