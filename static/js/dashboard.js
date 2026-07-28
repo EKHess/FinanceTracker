@@ -139,6 +139,29 @@ async function saveCategoryEdit(event) {
     }
 }
 
+async function deleteCategory(categoryId) {
+    const category = window.CATEGORY_CONFIG[categoryId];
+    const current = currentWorkspaceState?.categories?.find((item) => item.id === categoryId);
+    const returned = Number(current?.total) || 0;
+    const confirmed = window.confirm(
+        `Delete “${category.label}”?\n\nThis cannot be undone. All expenses tied to this category in the current workspace, including recurring expenses, will be deleted. ${money.format(returned)} will return to this workspace's unspent income/surplus as if it was never spent.\n\nPast saved financial reports will not be changed.`
+    );
+    if (!confirmed) return;
+    try {
+        await api(`/api/categories/${categoryId}`, { method: "DELETE" });
+        document.querySelector(`.categories-table-row[data-category-id="${categoryId}"]`)?.remove();
+        document.querySelector(`#categoryCards [data-category-id="${categoryId}"]`)?.remove();
+        document.querySelectorAll(`option[value="${categoryId}"]`).forEach((option) => option.remove());
+        delete window.CATEGORY_CONFIG[categoryId];
+        localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(getCategoryOrder().filter((id) => id !== categoryId)));
+        await loadDashboard();
+        renderExpenseManager();
+        renderRecurringExpensesPage();
+    } catch (error) {
+        window.alert(error.message);
+    }
+}
+
 function setDarkMode(enabled) {
     const theme = enabled ? "dark" : "light";
     document.documentElement.dataset.bsTheme = theme;

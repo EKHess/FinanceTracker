@@ -165,12 +165,29 @@ def initialize_database():
         display_order INTEGER NOT NULL
     )
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS scorecard_categories (
+        scorecard_id INTEGER NOT NULL,
+        category_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        color TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        display_order INTEGER NOT NULL,
+        PRIMARY KEY (scorecard_id, category_id),
+        FOREIGN KEY(scorecard_id) REFERENCES scorecards(id)
+    )
+    """)
     from config import CATEGORY_CONFIG
     for display_order, (category_id, category) in enumerate(CATEGORY_CONFIG.items()):
         cursor.execute(
             "INSERT OR IGNORE INTO categories(id, label, color, icon, display_order) VALUES(?,?,?,?,?)",
             (category_id, category["label"], category["color"].upper(), category["icon"], display_order),
         )
+    cursor.execute("""
+        INSERT OR IGNORE INTO scorecard_categories(scorecard_id, category_id, label, color, icon, display_order)
+        SELECT scorecards.id, categories.id, categories.label, categories.color, categories.icon, categories.display_order
+        FROM scorecards CROSS JOIN categories
+    """)
 
     _ensure_column(cursor, "months", "income_mode", "TEXT NOT NULL DEFAULT 'simple'")
     _ensure_column(cursor, "months", "income_period_duration", "REAL NOT NULL DEFAULT 1")

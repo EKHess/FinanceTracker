@@ -7,7 +7,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_file
 import database
 from database import get_current_month, import_database_file, initialize_database
 from services.expenses import add_expense, delete_expense, get_expenses, update_expense
-from services.categories import get_category_config, update_category
+from services.categories import delete_category, get_category_config, update_category
 from services.finance import dashboard_summary
 from services.global_balance import draw_from_surplus, get_global_balance, save_deficit_pledge
 from services.months import get_category_totals, get_month_summary, update_income
@@ -199,6 +199,15 @@ def api_update_category(category_id):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(category)
+
+
+@app.route("/api/categories/<category_id>", methods=["DELETE"])
+def api_delete_category(category_id):
+    try:
+        result = delete_category(category_id, get_current_month()["id"])
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(result)
 
 
 @app.route("/api/expenses")

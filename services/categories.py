@@ -1,6 +1,7 @@
 import re
 
 from database import get_connection
+from services.net_worth import restore_liability_payment
 
 
 HEX_COLOR = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -28,7 +29,28 @@ def update_category(category_id, label, color):
     if cursor.rowcount == 0:
         conn.close()
         raise ValueError("Unknown category")
+    conn.execute("UPDATE scorecard_categories SET label = ?, color = ? WHERE category_id = ?", (label, color, category_id))
     conn.commit()
     row = conn.execute("SELECT id, label, color, icon FROM categories WHERE id = ?", (category_id,)).fetchone()
     conn.close()
     return dict(row)
+
+
+def delete_category(category_id, month_id):
+    conn = get_connection()
+    category = conn.execute("SELECT label FROM categories WHERE id = ?", (category_id,)).fetchone()
+    if category is None:
+        conn.close()
+        raise ValueError("Unknown category")
+    expenses = conn.execute(
+        "SELECT amount, liability_item_id, liability_payment_amount FROM expenses WHERE month_id = ? AND category = ?",
+        (month_id, category_id),
+    ).fetchall()
+    for expense in expenses:
+        restore_liability_payment(conn, expense["liability_item_id"], expense["liability_payment_amount"] or expense["amount"])
+    returned = sum(float(expense["amount"]) for expense in expenses)
+    conn.execute("DELETE FROM expenses WHERE month_id = ? AND category = ?", (month_id, category_id))
+    conn.execute("DELETE FROM categories WHERE id = ?", (category_id,))
+    conn.commit()
+    conn.close()
+    return {"id": category_id, "label": category["label"], "deleted_expenses": len(expenses), "returned": returned}

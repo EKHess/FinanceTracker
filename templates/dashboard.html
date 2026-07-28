@@ -171,7 +171,7 @@
             <div class="categories-table-row" role="row" data-category-id="{{ category_id }}">
                 <strong role="cell">{{ category.label }}</strong>
                 <span class="category-color" role="cell"><i style="background: {{ category.color }}"></i>{{ category.color|upper }}</span>
-                <span class="category-actions" role="cell"><button type="button" aria-label="Edit {{ category.label }}" onclick="openCategoryEditor('{{ category_id }}')"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete {{ category.label }}"><i class="bi bi-trash3"></i></button></span>
+                <span class="category-actions" role="cell"><button type="button" aria-label="Edit {{ category.label }}" onclick="openCategoryEditor('{{ category_id }}')"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete {{ category.label }}" onclick="deleteCategory('{{ category_id }}')"><i class="bi bi-trash3"></i></button></span>
                 <button class="category-order" type="button" role="cell" draggable="true" aria-label="Drag to reorder {{ category.label }}" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></button>
             </div>
             {% endfor %}
