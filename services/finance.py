@@ -48,12 +48,18 @@ def dashboard_summary(month_id):
 
     expenses = get_workspace_expenses(month_id)
     spending = sum(float(expense["amount"]) for expense in expenses)
+    global_draws = sum(
+        float(expense["amount"])
+        for expense in expenses
+        if expense.get("global_type") == "draw"
+    )
     recurring = sum(float(expense["amount"]) for expense in expenses if expense["recurring"])
     largest = min(expenses, key=lambda expense: (-float(expense["amount"]), expense["description"]), default=None)
 
     income = float(month["income"])
     spending = float(spending)
-    surplus = income - spending
+    # Global draws are funded by past reports, not this workspace's income.
+    surplus = income - (spending - global_draws)
     categories = category_totals(month_id)
 
     return {

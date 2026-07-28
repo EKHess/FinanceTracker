@@ -53,6 +53,21 @@ class PdfDocument:
         r, g, b = _rgb(color)
         self.page.append(f"{r:.3f} {g:.3f} {b:.3f} RG {x1:.1f} {y1:.1f} m {x2:.1f} {y2:.1f} l S")
 
+    def globe(self, x, y, size=9, color=GREEN):
+        """Draw a small globe marker using PDF paths, independent of fonts."""
+        r, g, b = _rgb(color)
+        radius = size / 2
+        k = radius * .5523
+        self.page.append(
+            f"{r:.3f} {g:.3f} {b:.3f} RG 0.8 w "
+            f"{x + radius:.1f} {y:.1f} m {x + radius:.1f} {y + k:.1f} {x + k:.1f} {y + radius:.1f} {x:.1f} {y + radius:.1f} c "
+            f"{x - k:.1f} {y + radius:.1f} {x - radius:.1f} {y + k:.1f} {x - radius:.1f} {y:.1f} c "
+            f"{x - radius:.1f} {y - k:.1f} {x - k:.1f} {y - radius:.1f} {x:.1f} {y - radius:.1f} c "
+            f"{x + k:.1f} {y - radius:.1f} {x + radius:.1f} {y - k:.1f} {x + radius:.1f} {y:.1f} c S "
+            f"{x - radius:.1f} {y:.1f} m {x + radius:.1f} {y:.1f} l S "
+            f"{x:.1f} {y - radius:.1f} m {x:.1f} {y + radius:.1f} l S"
+        )
+
     def render(self):
         objects = [None, "<< /Type /Catalog /Pages 2 0 R >>", None,
                    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
@@ -129,13 +144,16 @@ def _draw_report(pdf, report):
         f"Expenses: {summary['expense_count']}    Recurring: {summary['recurring_count']}    Recurring spending: {summary['recurring_percent']:.1f}%",
     ]
     y = 570
-    for insight in insights:
+    for index, insight in enumerate(insights):
         pdf.text(MARGIN, y, insight, 9, INK, y == 570)
+        if index == 0 and largest and largest.get("global_type") == "draw":
+            pdf.globe(min(MARGIN + 5 + len(insight) * 4.5, PAGE_WIDTH - MARGIN - 6), y + 3, 8)
         y -= 15
     y -= 5
 
     for category in report["categories"]:
-        required = 30 + max(len(category["expenses"]), 1) * 22
+        has_global_draw = any(expense.get("global_type") == "draw" for expense in category["expenses"])
+        required = 30 + max(len(category["expenses"]), 1) * 22 + (24 if has_global_draw else 0)
         if y - required < 45:
             pdf.new_page()
             pdf.text(MARGIN, 750, f"{report['name']} (continued)", 16, INK, True)
@@ -158,9 +176,15 @@ def _draw_report(pdf, report):
             if expense:
                 description = expense["description"][:58]
                 pdf.text(MARGIN + 10, y - 15, description, 9, INK)
+                if expense.get("global_type") == "draw":
+                    pdf.globe(min(MARGIN + 15 + len(description) * 4.5, 375), y - 12, 8)
                 pdf.text(390, y - 15, "Recurring" if expense["recurring"] else "One-time", 8, MUTED)
                 pdf.text(485, y - 15, _money(expense["amount"]), 9, INK, True)
             else:
                 pdf.text(MARGIN + 10, y - 15, "No expenses in this category", 9, MUTED)
             y -= 22
+        if has_global_draw:
+            pdf.globe(MARGIN + 14, y - 7, 8)
+            pdf.text(MARGIN + 24, y - 10, "Marked expenses came from global surplus, not income in this workspace period.", 7, MUTED)
+            y -= 24
         y -= 10
