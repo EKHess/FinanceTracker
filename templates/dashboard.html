@@ -162,7 +162,23 @@
                         </div>
                 </div></div></article></div></section>
 <section class="app-page" id="page-recurring"><header class="page-header"><div><h1>Recurring Items</h1><p>Review and manage all recurring expenses in your current workspace.</p></div></header><div class="panel recurring-items-panel"><div class="existing-expenses-header"><h2>Recurring Expenses</h2><div class="expense-list-tools"><div class="search-wrap"><i class="bi bi-search"></i><input id="recurringExpenseSearch" class="form-control" placeholder="Search recurring expenses..." oninput="handleRecurringExpenseSearch()"></div><select id="recurringExpenseSort" class="form-select" onchange="renderRecurringExpensesPage()"><option value="date">Date</option><option value="description">Description</option><option value="category">Category</option><option value="amount">Amount</option></select></div></div><div class="expense-manager-table"><div class="expense-manager-head"><span>Date</span><span>Description</span><span>Category</span><span>Amount</span><span>Recurring</span><span></span></div><div id="recurringExpenseRows"></div><button id="showMoreRecurringExpenses" class="show-more-expenses d-none" onclick="showMoreRecurringExpenses()"></button></div></div></section>
-{% for page,title,icon in [('categories','Categories','grid')] %}<section class="app-page" id="page-{{ page }}"><header class="page-header"><div><h1>{{ title }}</h1><p>This workspace is ready for future Finance Tracker features.</p></div></header><div class="panel empty-state"><i class="bi bi-{{ icon }}"></i><h2>{{ title }}</h2><p>No features have been added to this area yet.</p></div></section>{% endfor %}
+<section class="app-page" id="page-categories">
+    <header class="page-header categories-header"><div><h1>Categories</h1><p>Manage your spending categories. You can edit, delete, or reorder categories to match your needs.</p></div><button class="btn btn-success category-add" type="button"><i class="bi bi-plus-lg"></i>Add Category</button></header>
+    <div class="panel categories-panel">
+        <div class="categories-table" role="table" aria-label="Spending categories">
+            <div class="categories-table-head" role="row"><span role="columnheader">Title</span><span role="columnheader">Color</span><span role="columnheader">Actions</span><span role="columnheader">Order</span></div>
+            {% for category_id, category in categories.items() %}
+            <div class="categories-table-row" role="row">
+                <strong role="cell">{{ category.label }}</strong>
+                <span class="category-color" role="cell"><i style="background: {{ category.color }}"></i>{{ category.color|upper }}</span>
+                <span class="category-actions" role="cell"><button type="button" aria-label="Edit {{ category.label }}"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete {{ category.label }}"><i class="bi bi-trash3"></i></button></span>
+                <button class="category-order" type="button" role="cell" aria-label="Reorder {{ category.label }}"><i class="bi bi-grip-vertical"></i></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <aside class="categories-tip"><span><i class="bi bi-info-lg"></i></span><div><strong>Reorder Categories</strong><p>Click and drag the handle (<i class="bi bi-grip-vertical" aria-hidden="true"></i>) on the right to reorder your categories.</p></div></aside>
+</section>
 </main></div>
 <datalist id="liabilityNames"></datalist>
 <div class="modal fade" id="netWorthModal" tabindex="-1" aria-labelledby="netWorthModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form onsubmit="saveNetWorthItem(event)"><div class="modal-header"><h5 class="modal-title" id="netWorthModalTitle">Add Asset</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input id="netWorthItemId" type="hidden"><input id="netWorthItemType" type="hidden"><div class="mb-3"><label class="form-label" for="netWorthName">Name</label><input id="netWorthName" class="form-control" required maxlength="100" placeholder="e.g. Emergency Fund"></div><div class="mb-3"><label class="form-label" for="netWorthCategory">Category (optional)</label><input id="netWorthCategory" class="form-control" maxlength="100" placeholder="e.g. Savings"></div><label class="form-label" for="netWorthAmount">Current value or balance</label><div class="input-group"><span class="input-group-text">$</span><input id="netWorthAmount" class="form-control" type="number" min="0" step="0.01" required></div><div id="netWorthError" class="alert alert-danger mt-3 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Save</button></div></form></div></div></div>
