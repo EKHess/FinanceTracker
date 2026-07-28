@@ -187,7 +187,9 @@ def create_scorecard(month_id, name, start_date, end_date):
         raise ValueError("Start date must be before end date")
 
     snapshot = dashboard_summary(month_id)
-    global_balance = get_global_balance(month_id)["balance"]
+    # Saving closes the active period, so its income-funded result becomes part
+    # of the carried balance at the moment represented by this report.
+    global_balance = get_global_balance(month_id)["balance"] + snapshot["summary"]["surplus"]
     net_worth = get_net_worth()["net_worth"]
     expenses = snapshot["expenses"]
 

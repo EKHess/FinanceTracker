@@ -339,7 +339,7 @@ function renderGlobalBalance(state) {
     document.getElementById("globalSurplusAction").classList.toggle("d-none", deficit);
     document.getElementById("globalBalanceCaption").textContent = deficit
         ? "Global deficit · current income will help bring this back to zero"
-        : "Available carried surplus · including this active period";
+        : "Available surplus carried from past financial reports";
     document.getElementById("globalPledgeAmount").value = state.pledge || "";
     document.getElementById("globalPledgeButtonLabel").textContent = state.pledge ? "Update pledge" : "Make pledge";
     document.getElementById("globalPledgeHint").textContent = state.pledge

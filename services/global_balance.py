@@ -7,13 +7,15 @@ from services.net_worth import apply_liability_payment
 
 
 def get_global_balance(month_id):
-    """Return the sum of every saved and active workspace surplus or deficit."""
+    """Return saved report balances adjusted by active global allocations.
+
+    Ordinary income and spending in the active workspace do not become part of
+    the global balance until the workspace is saved as a financial report.
+    """
     conn = get_connection()
     historical = conn.execute(
         "SELECT COALESCE(SUM(income - total_spending), 0) FROM scorecards"
     ).fetchone()[0]
-    month = conn.execute("SELECT income FROM months WHERE id = ?", (month_id,)).fetchone()
-    current_spending = sum(float(expense["amount"]) for expense in get_workspace_expenses(month_id))
     pledge = conn.execute(
         "SELECT id, amount FROM expenses WHERE month_id = ? AND global_type = 'pledge' LIMIT 1",
         (month_id,),
@@ -23,9 +25,11 @@ def get_global_balance(month_id):
         (month_id,),
     ).fetchone()[0]
     conn.close()
-    income = float(month["income"]) if month else 0.0
     pledge_amount = float(pledge["amount"]) if pledge else 0.0
-    current_contribution = income - float(current_spending)
+    # A pledge transfers active income into a saved deficit, while a draw
+    # spends previously saved surplus. Neither operation changes the active
+    # workspace's otherwise-unspent income.
+    current_contribution = pledge_amount - float(draws)
     balance = float(historical) + current_contribution
     return {
         "balance": round(balance, 2),
