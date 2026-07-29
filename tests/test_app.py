@@ -30,7 +30,7 @@ def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
         assert f'id="{field_id}"'.encode() in response.data
 
 
-def test_tfsa_calculator_matches_static_planning_scenario(tmp_path, monkeypatch):
+def test_tfsa_calculator_exposes_live_inputs_and_results(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
     import app as app_module
@@ -39,9 +39,25 @@ def test_tfsa_calculator_matches_static_planning_scenario(tmp_path, monkeypatch)
 
     response = app_module.app.test_client().get("/")
 
-    for text in ("Your details", "Your contributions", "Your Results", "$105,679", "$14,197", "Investment growth over time", "Taxable Investment Account (after tax)"):
+    for text in ("Your details", "Your contributions", "Your Results", "Investment growth over time", "Taxable Investment Account (after tax)"):
         assert text.encode() in response.data
-    assert response.data.count(b'class="tfsa-year"') == 10
+    for field_id in ("tfsaCountry", "tfsaProvince", "tfsaTaxYear", "tfsaAnnualIncome", "tfsaStartingContribution", "tfsaOngoingContribution", "tfsaFrequency", "tfsaReturnRate", "tfsaYears", "tfsaFutureValue", "tfsaTaxSavings", "tfsaBars"):
+        assert f'id="{field_id}"'.encode() in response.data
+    for frequency in ("Weekly", "Biweekly", "Monthly", "Quarterly", "Annually"):
+        assert frequency.encode() in response.data
+
+
+def test_tfsa_calculator_uses_ordinary_annuity_and_incremental_tax_logic():
+    script = (ROOT / "static/js/dashboard.js").read_text()
+
+    assert "const periodicRate = annualReturnRate / periodsPerYear" in script
+    assert "const totalPeriods = years * periodsPerYear" in script
+    assert "startingContribution * growthFactor" in script
+    assert "contributionAmount * ((growthFactor - 1) / periodicRate)" in script
+    assert "contributionAmount * totalPeriods" in script
+    assert "balance = balance * (1 + periodicRate)" in script
+    assert "balance = balance + contributionAmount" in script
+    assert "taxForIncome(income + Math.max(interest, 0)) - taxForIncome(income)" in script
 
 
 def test_retirement_calculator_implements_inflation_adjusted_savings_formula():
