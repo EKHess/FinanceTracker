@@ -186,11 +186,11 @@
 <section class="app-page" id="page-calculators">
     <header class="page-header calculators-header"><div><h1>Calculators</h1><p>Explore financial calculators to help you plan, compare, and achieve your goals.</p></div><button class="btn btn-outline-secondary" type="button" title="Calculator results are estimates for planning purposes."><i class="bi bi-question-circle me-2"></i>How calculators work</button></header>
     <div class="calculator-grid" aria-label="Available financial calculators">
-        <article class="calculator-card">
+        <button class="calculator-card calculator-card-link" type="button" onclick="navigateTo('tfsa-calculator')" aria-label="Open TFSA Calculator">
             <div class="calculator-title"><span class="calculator-icon tfsa"><i class="bi bi-piggy-bank"></i></span><h2>TFSA Calculator</h2></div>
             <p>Project the growth of your Tax-Free Savings Account contributions over time.</p>
             <footer><span><i class="bi bi-clock"></i>2–3 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
-        </article>
+        </button>
         <article class="calculator-card">
             <div class="calculator-title"><span class="calculator-icon mortgage"><i class="bi bi-percent"></i></span><h2>Mortgage Calculator</h2></div>
             <p>Calculate your monthly mortgage payments, total interest, and amortization schedule.</p>
@@ -203,6 +203,38 @@
         </button>
     </div>
     <aside class="calculators-notice"><span><i class="bi bi-info-lg"></i></span><div><strong>Important</strong><p>Calculations are estimates only and for informational purposes. Results may vary based on changes in rates, taxes, and your personal circumstances.</p></div></aside>
+</section>
+<section class="app-page" id="page-tfsa-calculator">
+    <button class="calculator-back" type="button" onclick="navigateTo('calculators')"><i class="bi bi-arrow-left"></i>Back to Calculators</button>
+    <header class="tfsa-page-header"><div><h1>TFSA Calculator</h1><p>See how much you can grow your TFSA savings and how much tax-free growth could help you keep.</p></div><button class="btn btn-outline-secondary" type="button"><i class="bi bi-question-circle me-2"></i>How this calculator works</button></header>
+    <div class="tfsa-layout">
+        <form class="panel tfsa-form" onsubmit="event.preventDefault()">
+            <fieldset><legend>1. Your details</legend><div class="tfsa-details-grid">
+                <label>Country<select class="form-select"><option>Canada</option></select></label>
+                <label>Province/region<select class="form-select"><option>Alberta</option></select></label>
+                <label>Tax year<select class="form-select"><option>2026</option></select></label>
+                <label>Annual gross income<input class="form-control" value="95,000" inputmode="decimal"></label>
+            </div></fieldset>
+            <fieldset><legend>2. Your contributions</legend><div class="tfsa-contribution-grid">
+                <label>Starting contribution amount <i class="bi bi-info-circle" title="The amount already in your TFSA."></i><input class="form-control" value="10,000" inputmode="decimal"></label>
+                <label>Ongoing contribution amount <i class="bi bi-info-circle" title="The amount you plan to add each period."></i><input class="form-control" value="5,000" inputmode="decimal"></label>
+                <label>Contribution frequency<select class="form-select"><option>Monthly</option></select></label>
+                <label>Rate of return (before tax) <i class="bi bi-info-circle" title="Your estimated annual investment return."></i><span class="tfsa-suffix"><input class="form-control" value="6.00" inputmode="decimal"><b>%</b></span></label>
+                <label>Number of years you plan to save for<span class="tfsa-suffix"><input class="form-control" value="10" inputmode="numeric"><b>years</b></span></label>
+            </div></fieldset>
+            <button class="btn btn-success tfsa-calculate" type="submit">Calculate</button>
+            <aside class="tfsa-assumption"><i class="bi bi-info-circle"></i><p>This calculator assumes all contributions are made at the beginning of each period. Results are estimates and for illustrative purposes only.</p></aside>
+        </form>
+        <section class="tfsa-results">
+            <header><h2>Your Results</h2><p>Total saved in your TFSA after 10 years</p><strong>$105,679</strong><p>That is <b>$14,197</b> more than you would have saved in a<br>taxable investment account where earnings are taxed.</p></header>
+            <div class="tfsa-chart"><h3>Investment growth over time</h3><div class="tfsa-chart-body">
+                <div class="tfsa-y-axis"><span>$105.7K</span><span>$79.3K</span><span>$52.8K</span><span>$26.4K</span><span>$0</span></div>
+                <div class="tfsa-bars" aria-label="Bar chart comparing TFSA and taxable investment growth over ten years">
+                    {% for year, tfsa, taxable in [(1,13,13),(2,22,16),(3,30,23),(4,39,30),(5,48,37),(6,58,45),(7,68,54),(8,79,63),(9,91,77),(10,100,90)] %}<div class="tfsa-year"><div class="tfsa-bar-pair"><i class="tax-free" style="height:{{ tfsa }}%"></i><i class="taxable" style="height:{{ taxable }}%"></i></div><span>{{ year }} {{ 'yr' if year == 1 else 'yrs' }}</span></div>{% endfor %}
+                </div>
+            </div><footer><span><i class="tax-free"></i>TFSA (tax-free)</span><span><i class="taxable"></i>Taxable Investment Account (after tax)</span></footer></div>
+        </section>
+    </div>
 </section>
 <section class="app-page" id="page-retirement-calculator">
     <button class="calculator-back" type="button" onclick="navigateTo('calculators')"><i class="bi bi-arrow-left"></i>Back to Calculators</button>

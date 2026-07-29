@@ -21,11 +21,27 @@ def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
         assert label.encode() in response.data
     assert b'data-page="calculators"' in response.data
     assert b'id="page-calculators"' in response.data
+    assert b"navigateTo('tfsa-calculator')" in response.data
+    assert b'id="page-tfsa-calculator"' in response.data
     assert b"navigateTo('retirement-calculator')" in response.data
     assert b'id="page-retirement-calculator"' in response.data
     assert b"Back to Calculators" in response.data
     for field_id in ("retirementAge", "retirementLifeExpectancy", "retirementAnnualSpending", "retirementIncludeInflation", "retirementInflationRate"):
         assert f'id="{field_id}"'.encode() in response.data
+
+
+def test_tfsa_calculator_matches_static_planning_scenario(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    response = app_module.app.test_client().get("/")
+
+    for text in ("Your details", "Your contributions", "Your Results", "$105,679", "$14,197", "Investment growth over time", "Taxable Investment Account (after tax)"):
+        assert text.encode() in response.data
+    assert response.data.count(b'class="tfsa-year"') == 10
 
 
 def test_retirement_calculator_implements_inflation_adjusted_savings_formula():
