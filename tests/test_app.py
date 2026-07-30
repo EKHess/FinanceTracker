@@ -508,6 +508,40 @@ def test_global_surplus_draw_is_capped_and_allocated_to_category(tmp_path, monke
     assert b"Marked expenses came from global surplus" in pdf
 
 
+def test_global_balance_actions_accept_newly_created_categories(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 1000})
+    client.post("/api/expenses", json={"description": "Past spending", "amount": 600, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved surplus", "start_date": "2026-01-01", "end_date": "2026-01-31"})
+    custom_id = client.post("/api/categories", json={"label": "Travel", "color": "#12AB34"}).get_json()["id"]
+
+    draw = client.post(
+        "/api/global-balance/draw",
+        json={"amount": 100, "category": custom_id, "description": "Train ticket"},
+    )
+    assert draw.status_code == 200
+    custom_draw = next(expense for expense in client.get("/api/expenses").get_json() if expense["global_type"] == "draw")
+    assert custom_draw["category"] == custom_id
+
+    client.post("/api/income", json={"income": 100})
+    client.post("/api/expenses", json={"description": "Emergency", "amount": 800, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved deficit", "start_date": "2026-02-01", "end_date": "2026-02-28"})
+    client.post("/api/income", json={"income": 200})
+    assert client.get("/api/global-balance").get_json()["balance"] == -400
+
+    pledge = client.post("/api/global-balance/pledge", json={"amount": 75, "category": custom_id})
+    assert pledge.status_code == 200
+    assert pledge.get_json()["pledge_category"] == custom_id
+    custom_pledge = next(expense for expense in client.get("/api/expenses").get_json() if expense["global_type"] == "pledge")
+    assert custom_pledge["category"] == custom_id
+
+
 def test_global_balance_ignores_unsaved_workspace_result(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database

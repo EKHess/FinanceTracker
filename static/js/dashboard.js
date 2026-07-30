@@ -690,15 +690,20 @@ function renderGlobalBalance(state) {
         ? "Global deficit · current income will help bring this back to zero"
         : "Available surplus carried from past financial reports";
     document.getElementById("globalPledgeAmount").value = state.pledge || "";
+    document.getElementById("globalPledgeCategory").value = state.pledge_category || "savings";
     document.getElementById("globalPledgeButtonLabel").textContent = state.pledge ? "Update pledge" : "Make pledge";
+    const pledgeCategory = window.CATEGORY_CONFIG[state.pledge_category || "savings"]?.label || "the selected category";
     document.getElementById("globalPledgeHint").textContent = state.pledge
-        ? `${money.format(state.pledge)} is pledged this period. Updating it will revise the highlighted Savings expense.`
-        : "Earmark unallocated income as Savings. You can revise this pledge at any time.";
+        ? `${money.format(state.pledge)} is pledged this period. Updating it will revise the highlighted ${pledgeCategory} expense.`
+        : "Earmark unallocated income in any category. You can revise this pledge at any time.";
 }
 
 async function saveGlobalPledge(event) {
     event.preventDefault();
-    await submitGlobalAction("/api/global-balance/pledge", { amount: parseFloat(document.getElementById("globalPledgeAmount").value) });
+    await submitGlobalAction("/api/global-balance/pledge", {
+        amount: parseFloat(document.getElementById("globalPledgeAmount").value),
+        category: document.getElementById("globalPledgeCategory").value,
+    });
 }
 
 async function drawGlobalSurplus(event) {

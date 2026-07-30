@@ -56,8 +56,8 @@
             <div><div class="global-balance-label">Global Surplus / Deficit <span class="info-tip" title="Saved workspace results plus your active period, carried forward over time."><i class="bi bi-info-circle"></i></span></div><h2 id="globalBalanceAmount">$0.00</h2><p id="globalBalanceCaption">Loading your carried balance…</p></div>
         </div>
         <div id="globalDeficitAction" class="global-action d-none">
-            <div><strong>Pay down your deficit</strong><p id="globalPledgeHint">Earmark unallocated income as Savings. You can revise this pledge at any time.</p></div>
-            <form onsubmit="saveGlobalPledge(event)"><div class="input-group"><span class="input-group-text">$</span><input id="globalPledgeAmount" class="form-control" type="number" min="0.01" step="0.01" required aria-label="Deficit payoff pledge"></div><button class="btn btn-success" type="submit"><i class="bi bi-shield-check me-1"></i><span id="globalPledgeButtonLabel">Make pledge</span></button></form>
+            <div><strong>Pay down your deficit</strong><p id="globalPledgeHint">Earmark unallocated income in a category. You can revise this pledge at any time.</p></div>
+            <form onsubmit="saveGlobalPledge(event)"><select id="globalPledgeCategory" class="form-select" required aria-label="Deficit payoff category"><option value="">Choose category</option>{% for category_id, category in categories.items() %}<option value="{{ category_id }}"{% if category_id == "savings" %} selected{% endif %}>{{ category.label }}</option>{% endfor %}</select><div class="input-group"><span class="input-group-text">$</span><input id="globalPledgeAmount" class="form-control" type="number" min="0.01" step="0.01" required aria-label="Deficit payoff pledge"></div><button class="btn btn-success" type="submit"><i class="bi bi-shield-check me-1"></i><span id="globalPledgeButtonLabel">Make pledge</span></button></form>
         </div>
         <div id="globalSurplusAction" class="global-action d-none">
             <div><strong>Put saved cash to work</strong><p>Allocate carried surplus to a category without increasing this period's income.</p></div>

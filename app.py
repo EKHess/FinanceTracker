@@ -94,8 +94,9 @@ def api_global_balance():
 
 @app.route("/api/global-balance/pledge", methods=["POST"])
 def api_global_pledge():
+    data = request.get_json() or {}
     try:
-        return jsonify(save_deficit_pledge(get_current_month()["id"], (request.get_json() or {}).get("amount", 0)))
+        return jsonify(save_deficit_pledge(get_current_month()["id"], data.get("amount", 0), data.get("category", "savings")))
     except (TypeError, ValueError) as exc:
         return jsonify({"error": str(exc)}), 400
 
