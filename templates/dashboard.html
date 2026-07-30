@@ -186,11 +186,11 @@
 <section class="app-page" id="page-calculators">
     <header class="page-header calculators-header"><div><h1>Calculators</h1><p>Explore financial calculators to help you plan, compare, and achieve your goals.</p></div><button class="btn btn-outline-secondary" type="button" title="Calculator results are estimates for planning purposes."><i class="bi bi-question-circle me-2"></i>How calculators work</button></header>
     <div class="calculator-grid" aria-label="Available financial calculators">
-        <article class="calculator-card">
+        <button class="calculator-card calculator-card-link" type="button" onclick="navigateTo('tfsa-calculator')" aria-label="Open TFSA Calculator">
             <div class="calculator-title"><span class="calculator-icon tfsa"><i class="bi bi-piggy-bank"></i></span><h2>TFSA Calculator</h2></div>
             <p>Project the growth of your Tax-Free Savings Account contributions over time.</p>
             <footer><span><i class="bi bi-clock"></i>2–3 min</span><i class="bi bi-chevron-right" aria-hidden="true"></i></footer>
-        </article>
+        </button>
         <article class="calculator-card">
             <div class="calculator-title"><span class="calculator-icon mortgage"><i class="bi bi-percent"></i></span><h2>Mortgage Calculator</h2></div>
             <p>Calculate your monthly mortgage payments, total interest, and amortization schedule.</p>
@@ -203,6 +203,36 @@
         </button>
     </div>
     <aside class="calculators-notice"><span><i class="bi bi-info-lg"></i></span><div><strong>Important</strong><p>Calculations are estimates only and for informational purposes. Results may vary based on changes in rates, taxes, and your personal circumstances.</p></div></aside>
+</section>
+<section class="app-page" id="page-tfsa-calculator">
+    <button class="calculator-back" type="button" onclick="navigateTo('calculators')"><i class="bi bi-arrow-left"></i>Back to Calculators</button>
+    <header class="tfsa-page-header"><div><h1>TFSA Calculator</h1><p>See how much you can grow your TFSA savings and how much tax-free growth could help you keep.</p></div><button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#tfsaExplanationModal"><i class="bi bi-question-circle me-2"></i>How this calculator works</button></header>
+    <div class="tfsa-layout">
+        <form class="panel tfsa-form" onsubmit="event.preventDefault()">
+            <fieldset><legend>1. Your details</legend><div class="tfsa-details-grid">
+                <label for="tfsaCountry">Country<select id="tfsaCountry" class="form-select"></select></label>
+                <label for="tfsaProvince">Province/region<select id="tfsaProvince" class="form-select"></select></label>
+                <label for="tfsaTaxYear">Tax year<select id="tfsaTaxYear" class="form-select"></select></label>
+                <label for="tfsaAnnualIncome">Annual gross income<input id="tfsaAnnualIncome" class="form-control" type="number" min="0" step="0.01" value="95000"></label>
+            </div></fieldset>
+            <fieldset><legend>2. Your contributions</legend><div class="tfsa-contribution-grid">
+                <label for="tfsaStartingContribution">Starting contribution amount <i class="bi bi-info-circle" title="The amount already in your TFSA."></i><input id="tfsaStartingContribution" class="form-control" type="number" min="0" step="0.01" value="10000"></label>
+                <label for="tfsaOngoingContribution">Ongoing contribution amount <i class="bi bi-info-circle" title="The amount you plan to add each period."></i><input id="tfsaOngoingContribution" class="form-control" type="number" min="0" step="0.01" value="5000"></label>
+                <label for="tfsaFrequency">Contribution frequency<select id="tfsaFrequency" class="form-select"><option value="52">Weekly</option><option value="26">Biweekly</option><option value="12" selected>Monthly</option><option value="4">Quarterly</option><option value="1">Annually</option></select></label>
+                <label for="tfsaReturnRate">Annual rate of return <i class="bi bi-info-circle" title="Enter a decimal, such as 0.08 for an 8% annual return."></i><span class="tfsa-suffix"><input id="tfsaReturnRate" class="form-control" type="number" min="0" step="0.001" value="0.06"><b>decimal</b></span></label>
+                <label for="tfsaYears">Number of years you plan to save for<span class="tfsa-suffix"><input id="tfsaYears" class="form-control" type="number" min="1" max="100" step="1" value="10"><b>years</b></span></label>
+            </div></fieldset>
+            <button class="btn btn-success tfsa-calculate" type="submit">Calculate</button>
+            <aside class="tfsa-assumption"><i class="bi bi-info-circle"></i><p>Recurring contributions are made at the end of each period. Results are estimates and for illustrative purposes only.</p></aside>
+        </form>
+        <section class="tfsa-results">
+            <header><h2>Your Results</h2><p>Total saved in your TFSA after <span id="tfsaResultYears">10</span> years</p><strong id="tfsaFutureValue">$0.00</strong><p>That is <b id="tfsaTaxSavings">$0.00</b> more than you would have saved in a taxable investment account where earnings are taxed.</p></header>
+            <div class="tfsa-chart"><h3>Investment growth over time</h3><div class="tfsa-chart-body">
+                <div id="tfsaYAxis" class="tfsa-y-axis"></div>
+                <div id="tfsaBars" class="tfsa-bars" aria-label="Bar chart comparing TFSA and taxable investment growth"></div>
+            </div><footer><span><i class="tax-free"></i>TFSA (tax-free)</span><span><i class="taxable"></i>Taxable Investment Account (after tax)</span></footer></div>
+        </section>
+    </div>
 </section>
 <section class="app-page" id="page-retirement-calculator">
     <button class="calculator-back" type="button" onclick="navigateTo('calculators')"><i class="bi bi-arrow-left"></i>Back to Calculators</button>
@@ -239,6 +269,18 @@
     <aside class="retirement-note"><i class="bi bi-info-circle"></i><p>This calculation does not include taxes, investment returns, or other income sources.</p></aside>
 </section>
 </main></div>
+<div class="modal fade" id="tfsaExplanationModal" tabindex="-1" aria-labelledby="tfsaExplanationTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content tfsa-explanation-modal">
+        <div class="modal-header"><div><h2 class="modal-title" id="tfsaExplanationTitle">How the TFSA calculator works</h2><p class="modal-subtitle">How your contributions grow and how the taxable comparison is estimated.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <section><span class="tfsa-explanation-icon"><i class="bi bi-graph-up-arrow"></i></span><div><h3>Growing your investment</h3><p>The calculator starts with the amount already invested, then adds your ongoing contribution at the end of every selected contribution period. Annual return is divided by the number of periods per year—1 annually, 4 quarterly, 12 monthly, 26 biweekly, or 52 weekly—and the balance compounds once per period.</p><div class="tfsa-formula"><span>Periodic rate = annual return ÷ periods per year</span><strong>Future value = P × (1 + r)<sup>N</sup> + C × (((1 + r)<sup>N</sup> − 1) ÷ r)</strong></div><p class="mb-0">In the formula, <b>P</b> is the starting contribution, <b>C</b> is each recurring contribution, <b>r</b> is the periodic return, and <b>N</b> is the total number of periods. At a 0% return, the result is simply the starting amount plus every contribution.</p></div></section>
+            <section><span class="tfsa-explanation-icon tax-free"><i class="bi bi-shield-check"></i></span><div><h3>TFSA (tax-free)</h3><p class="mb-0">The starting contribution, every recurring contribution, and all investment growth remain in the account. No income tax is deducted from the interest earned, so the full compounded balance is shown by the green bars.</p></div></section>
+            <section><span class="tfsa-explanation-icon taxable"><i class="bi bi-receipt"></i></span><div><h3>Taxable investment account</h3><p>The same contribution and compounding calculation is used first. The calculator then treats only the investment interest—not your contributed principal—as additional taxable income.</p><p class="mb-0">It uses the selected country, province or region, and tax year to calculate tax on your annual gross income both with and without that interest. The difference is deducted from the investment balance. Because the existing progressive tax rules are reused, interest that crosses a tax-bracket boundary is split across the applicable brackets.</p></div></section>
+            <aside><i class="bi bi-info-circle"></i><p>These results are estimates for planning purposes. They use the tax rulesets configured in Income Sources and assume recurring contributions are made at the end of each period.</p></aside>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-success" data-bs-dismiss="modal">Got it</button></div>
+    </div></div>
+</div>
 <datalist id="liabilityNames"></datalist>
 <div class="modal fade" id="categoryEditorModal" tabindex="-1" aria-labelledby="categoryEditorTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form onsubmit="saveCategoryEdit(event)"><div class="modal-header"><div><h5 class="modal-title" id="categoryEditorTitle">Edit Category</h5><p class="modal-subtitle">Update how this category appears throughout Finance Tracker.</p></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body"><input id="categoryEditorId" type="hidden"><div class="mb-3"><label class="form-label" for="categoryEditorLabel">Title</label><input id="categoryEditorLabel" class="form-control" maxlength="60" required></div><label class="form-label" for="categoryEditorColorText">Color</label><div class="category-color-editor"><input id="categoryEditorColorPicker" type="color" aria-label="Choose category color" oninput="syncCategoryColorFromPicker()"><div class="input-group"><span class="input-group-text">#</span><input id="categoryEditorColorText" class="form-control" maxlength="6" pattern="[0-9A-Fa-f]{6}" placeholder="15975D" required oninput="syncCategoryColorFromText()"></div></div><div class="form-text">Choose a color or enter a six-digit hexadecimal code.</div><div id="categoryEditorError" class="alert alert-danger mt-3 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Save Changes</button></div></form></div></div></div>
 <div class="modal fade" id="netWorthModal" tabindex="-1" aria-labelledby="netWorthModalTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><form onsubmit="saveNetWorthItem(event)"><div class="modal-header"><h5 class="modal-title" id="netWorthModalTitle">Add Asset</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><input id="netWorthItemId" type="hidden"><input id="netWorthItemType" type="hidden"><div class="mb-3"><label class="form-label" for="netWorthName">Name</label><input id="netWorthName" class="form-control" required maxlength="100" placeholder="e.g. Emergency Fund"></div><div class="mb-3"><label class="form-label" for="netWorthCategory">Category (optional)</label><input id="netWorthCategory" class="form-control" maxlength="100" placeholder="e.g. Savings"></div><label class="form-label" for="netWorthAmount">Current value or balance</label><div class="input-group"><span class="input-group-text">$</span><input id="netWorthAmount" class="form-control" type="number" min="0" step="0.01" required></div><div id="netWorthError" class="alert alert-danger mt-3 d-none"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" type="submit">Save</button></div></form></div></div></div>

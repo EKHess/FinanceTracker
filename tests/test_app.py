@@ -21,11 +21,59 @@ def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
         assert label.encode() in response.data
     assert b'data-page="calculators"' in response.data
     assert b'id="page-calculators"' in response.data
+    assert b"navigateTo('tfsa-calculator')" in response.data
+    assert b'id="page-tfsa-calculator"' in response.data
     assert b"navigateTo('retirement-calculator')" in response.data
     assert b'id="page-retirement-calculator"' in response.data
     assert b"Back to Calculators" in response.data
     for field_id in ("retirementAge", "retirementLifeExpectancy", "retirementAnnualSpending", "retirementIncludeInflation", "retirementInflationRate"):
         assert f'id="{field_id}"'.encode() in response.data
+
+
+def test_tfsa_calculator_exposes_live_inputs_and_results(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    response = app_module.app.test_client().get("/")
+
+    for text in ("Your details", "Your contributions", "Your Results", "Investment growth over time", "Taxable Investment Account (after tax)"):
+        assert text.encode() in response.data
+    for field_id in ("tfsaCountry", "tfsaProvince", "tfsaTaxYear", "tfsaAnnualIncome", "tfsaStartingContribution", "tfsaOngoingContribution", "tfsaFrequency", "tfsaReturnRate", "tfsaYears", "tfsaFutureValue", "tfsaTaxSavings", "tfsaBars"):
+        assert f'id="{field_id}"'.encode() in response.data
+    for frequency in ("Weekly", "Biweekly", "Monthly", "Quarterly", "Annually"):
+        assert frequency.encode() in response.data
+
+
+def test_tfsa_calculator_uses_ordinary_annuity_and_incremental_tax_logic():
+    script = (ROOT / "static/js/dashboard.js").read_text()
+
+    assert "const periodicRate = annualReturnRate / periodsPerYear" in script
+    assert "const totalPeriods = years * periodsPerYear" in script
+    assert "startingContribution * growthFactor" in script
+    assert "contributionAmount * ((growthFactor - 1) / periodicRate)" in script
+    assert "contributionAmount * totalPeriods" in script
+    assert "balance = balance * (1 + periodicRate)" in script
+    assert "balance = balance + contributionAmount" in script
+    assert "taxForIncome(income + Math.max(interest, 0)) - taxForIncome(income)" in script
+
+
+def test_tfsa_calculator_explains_tax_free_and_taxable_calculations(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    page = app_module.app.test_client().get("/").data
+
+    assert b'data-bs-target="#tfsaExplanationModal"' in page
+    assert b'id="tfsaExplanationModal"' in page
+    assert b'id="tfsaExplanationTitle"' in page
+    for explanation in (b"Periodic rate = annual return", b"Future value = P", b"TFSA (tax-free)", b"Taxable investment account", b"tax-bracket boundary", b"end of each period"):
+        assert explanation in page
 
 
 def test_retirement_calculator_implements_inflation_adjusted_savings_formula():

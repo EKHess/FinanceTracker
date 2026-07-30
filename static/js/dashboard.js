@@ -184,6 +184,7 @@ function navigateTo(page) {
     if (page === "recurring") renderRecurringExpensesPage();
     if (page === "reports") refreshScorecardList();
     if (page === "net-worth") loadNetWorth();
+    if (page === "tfsa-calculator") initializeTfsaCalculator(true);
     if (page === "retirement-calculator") updateRetirementCalculator();
 }
 
@@ -218,6 +219,111 @@ function initializeRetirementCalculator() {
     inputs.forEach((id) => document.getElementById(id)?.addEventListener("input", updateRetirementCalculator));
     document.getElementById("retirementIncludeInflation")?.addEventListener("change", updateRetirementCalculator);
     updateRetirementCalculator();
+}
+
+const tfsaPeriodsPerYear = { annually: 1, quarterly: 4, monthly: 12, biweekly: 26, weekly: 52 };
+let tfsaCalculatorInitialized = false;
+
+function tfsaInputNumber(id) {
+    const value = Number(document.getElementById(id)?.value);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function calculateTfsaGrowth(startingContribution, contributionAmount, periodsPerYear, annualReturnRate, years) {
+    const periodicRate = annualReturnRate / periodsPerYear;
+    const totalPeriods = years * periodsPerYear;
+    const growthFactor = (1 + periodicRate) ** totalPeriods;
+    const startingFutureValue = startingContribution * growthFactor;
+    const contributionFutureValue = periodicRate === 0
+        ? contributionAmount * totalPeriods
+        : contributionAmount * ((growthFactor - 1) / periodicRate);
+    const yearlyBalances = [];
+    let balance = startingContribution;
+    for (let period = 1; period <= totalPeriods; period += 1) {
+        balance = balance * (1 + periodicRate);
+        balance = balance + contributionAmount;
+        if (period % periodsPerYear === 0) yearlyBalances.push(balance);
+    }
+    return { total: startingFutureValue + contributionFutureValue, yearlyBalances };
+}
+
+function tfsaIncrementalTax(income, interest, country, regionCode, taxYear) {
+    const taxForIncome = (amount) => {
+        const federal = calculateRulesetTax(amount, findRuleset(country, "FED", taxYear)).taxOwed;
+        const regional = regionCode === "FED" ? 0 : calculateRulesetTax(amount, findRuleset(country, regionCode, taxYear)).taxOwed;
+        return federal + regional;
+    };
+    return Math.max(taxForIncome(income + Math.max(interest, 0)) - taxForIncome(income), 0);
+}
+
+function renderTfsaTaxSelectors(preferredCountry = "Canada", preferredRegion = "AB", preferredYear = 2026) {
+    const countrySelect = document.getElementById("tfsaCountry");
+    const regionSelect = document.getElementById("tfsaProvince");
+    const yearSelect = document.getElementById("tfsaTaxYear");
+    if (!countrySelect) return;
+    const countries = [...new Set(taxRulesets.map((ruleset) => ruleset.country))].sort();
+    countrySelect.innerHTML = countries.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join("");
+    countrySelect.value = countries.includes(preferredCountry) ? preferredCountry : countries[0] || "";
+    const syncYears = (requestedYear = yearSelect.value || preferredYear) => {
+        const years = [...new Set(taxRulesets.filter((ruleset) => ruleset.country === countrySelect.value && ["FED", regionSelect.value].includes(ruleset.region_code)).map((ruleset) => Number(ruleset.tax_year)))].sort((a, b) => b - a);
+        yearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}</option>`).join("");
+        yearSelect.value = years.includes(Number(requestedYear)) ? String(requestedYear) : String(years[0] || "");
+        updateTfsaCalculator();
+    };
+    const syncRegions = (requestedRegion = regionSelect.value || preferredRegion) => {
+        const regionalRules = taxRulesets.filter((ruleset) => ruleset.country === countrySelect.value && ruleset.region_code !== "FED");
+        const uniqueRegions = [...new Map(regionalRules.map((ruleset) => [ruleset.region_code, ruleset])).values()];
+        regionSelect.innerHTML = `<option value="FED">Federal only</option>${uniqueRegions.map((ruleset) => `<option value="${escapeHtml(ruleset.region_code)}">${escapeHtml(ruleset.region_name)}</option>`).join("")}`;
+        regionSelect.value = ["FED", ...uniqueRegions.map((ruleset) => ruleset.region_code)].includes(requestedRegion) ? requestedRegion : "FED";
+        syncYears(preferredYear);
+    };
+    countrySelect.onchange = () => syncRegions("FED");
+    regionSelect.onchange = () => syncYears();
+    yearSelect.onchange = updateTfsaCalculator;
+    syncRegions(preferredRegion);
+}
+
+function updateTfsaCalculator() {
+    const periodsPerYear = Number(document.getElementById("tfsaFrequency")?.value) || tfsaPeriodsPerYear.monthly;
+    const years = Math.max(Math.floor(tfsaInputNumber("tfsaYears")), 1);
+    const startingContribution = tfsaInputNumber("tfsaStartingContribution");
+    const contributionAmount = tfsaInputNumber("tfsaOngoingContribution");
+    const result = calculateTfsaGrowth(startingContribution, contributionAmount, periodsPerYear, tfsaInputNumber("tfsaReturnRate"), years);
+    const income = tfsaInputNumber("tfsaAnnualIncome");
+    const country = document.getElementById("tfsaCountry")?.value || "";
+    const regionCode = document.getElementById("tfsaProvince")?.value || "FED";
+    const taxYear = Number(document.getElementById("tfsaTaxYear")?.value);
+    const taxableBalances = result.yearlyBalances.map((grossBalance, index) => {
+        const contributedPrincipal = startingContribution + contributionAmount * periodsPerYear * (index + 1);
+        return grossBalance - tfsaIncrementalTax(income, grossBalance - contributedPrincipal, country, regionCode, taxYear);
+    });
+    const taxableTotal = taxableBalances.at(-1) ?? startingContribution;
+    document.getElementById("tfsaResultYears").textContent = String(years);
+    document.getElementById("tfsaFutureValue").textContent = money.format(result.total);
+    document.getElementById("tfsaTaxSavings").textContent = money.format(Math.max(result.total - taxableTotal, 0));
+    renderTfsaChart(result.yearlyBalances, taxableBalances);
+}
+
+function renderTfsaChart(tfsaBalances, taxableBalances) {
+    const bars = document.getElementById("tfsaBars");
+    const yAxis = document.getElementById("tfsaYAxis");
+    const maximum = Math.max(...tfsaBalances, ...taxableBalances, 1);
+    const compactMoney = (value) => value >= 1000000 ? `$${(value / 1000000).toFixed(1)}M` : value >= 1000 ? `$${(value / 1000).toFixed(1)}K` : money.format(value);
+    yAxis.innerHTML = [maximum, maximum * .75, maximum * .5, maximum * .25, 0].map((value) => `<span>${compactMoney(value)}</span>`).join("");
+    bars.style.gridTemplateColumns = `repeat(${tfsaBalances.length},minmax(42px,1fr))`;
+    bars.innerHTML = tfsaBalances.map((value, index) => `<div class="tfsa-year"><div class="tfsa-bar-pair"><i class="tax-free" style="height:${value / maximum * 100}%" title="TFSA: ${money.format(value)}"></i><i class="taxable" style="height:${taxableBalances[index] / maximum * 100}%" title="Taxable: ${money.format(taxableBalances[index])}"></i></div><span>${index + 1} ${index === 0 ? "yr" : "yrs"}</span></div>`).join("");
+}
+
+async function initializeTfsaCalculator(refreshRulesets = false) {
+    if (!tfsaCalculatorInitialized) {
+        ["tfsaAnnualIncome", "tfsaStartingContribution", "tfsaOngoingContribution", "tfsaFrequency", "tfsaReturnRate", "tfsaYears"].forEach((id) => document.getElementById(id)?.addEventListener("input", updateTfsaCalculator));
+        tfsaCalculatorInitialized = true;
+    }
+    if (refreshRulesets || !taxRulesets.length) taxRulesets = await api("/api/tax-rulesets");
+    const country = document.getElementById("tfsaCountry")?.value || "Canada";
+    const region = document.getElementById("tfsaProvince")?.value || "AB";
+    const year = Number(document.getElementById("tfsaTaxYear")?.value) || 2026;
+    renderTfsaTaxSelectors(country, region, year);
 }
 
 let netWorthState = { assets: [], liabilities: [] };
@@ -956,6 +1062,7 @@ async function saveDisplayedTaxRuleset(id) {
     const selectedIncomeRules = [document.getElementById("taxCountry").value, document.getElementById("taxProvince").value, document.getElementById("taxYear").value];
     await api(`/api/tax-rulesets/${id}`, { method: "PUT", body: JSON.stringify({ ...ruleset, brackets: parseDisplayedBrackets(id) }) });
     taxRulesets = await api("/api/tax-rulesets");
+    await initializeTfsaCalculator();
     renderIncomeTaxSelectors(...selectedIncomeRules);
     renderTaxRulesetSelectors();
     updateIncomePreview();
@@ -966,6 +1073,7 @@ async function deleteTaxRuleset(id) {
     const selectedIncomeRules = [document.getElementById("taxCountry").value, document.getElementById("taxProvince").value, document.getElementById("taxYear").value];
     await api(`/api/tax-rulesets/${id}`, { method: "DELETE" });
     taxRulesets = await api("/api/tax-rulesets");
+    await initializeTfsaCalculator();
     renderIncomeTaxSelectors(...selectedIncomeRules);
     renderTaxRulesetSelectors();
     updateIncomePreview();
@@ -1043,6 +1151,7 @@ async function saveNewTaxRuleset() {
     try {
         await api("/api/tax-rulesets", { method: "POST", body: JSON.stringify(payload) });
         taxRulesets = await api("/api/tax-rulesets");
+        await initializeTfsaCalculator();
         renderIncomeTaxSelectors(identity.country, identity.regionCode, identity.taxYear);
         cancelNewTaxRuleset();
         renderTaxRulesetSelectors();
