@@ -7,6 +7,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_dashboard_includes_finance_tracker_favicon(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    response = app_module.app.test_client().get("/")
+
+    assert response.status_code == 200
+    assert b'<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">' in response.data
+    favicon = ROOT / "static/favicon.svg"
+    assert favicon.is_file()
+    assert "#42d58e" in favicon.read_text()
+
+
 def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
