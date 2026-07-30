@@ -60,6 +60,22 @@ def test_tfsa_calculator_uses_ordinary_annuity_and_incremental_tax_logic():
     assert "taxForIncome(income + Math.max(interest, 0)) - taxForIncome(income)" in script
 
 
+def test_tfsa_calculator_explains_tax_free_and_taxable_calculations(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    page = app_module.app.test_client().get("/").data
+
+    assert b'data-bs-target="#tfsaExplanationModal"' in page
+    assert b'id="tfsaExplanationModal"' in page
+    assert b'id="tfsaExplanationTitle"' in page
+    for explanation in (b"Periodic rate = annual return", b"Future value = P", b"TFSA (tax-free)", b"Taxable investment account", b"tax-bracket boundary", b"end of each period"):
+        assert explanation in page
+
+
 def test_retirement_calculator_implements_inflation_adjusted_savings_formula():
     script = (ROOT / "static/js/dashboard.js").read_text()
 
