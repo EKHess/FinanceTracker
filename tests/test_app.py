@@ -23,6 +23,26 @@ def test_dashboard_includes_finance_tracker_favicon(tmp_path, monkeypatch):
     assert "#42d58e" in favicon.read_text()
 
 
+def test_recurring_items_page_has_an_always_recurring_expense_form(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+
+    page = app_module.app.test_client().get("/").data
+    script = (ROOT / "static/js/dashboard.js").read_text()
+
+    assert b'id="recurringExpenseForm"' in page
+    assert b'onsubmit="submitRecurringExpense(event)"' in page
+    assert b'id="recurringExpenseRecurring"' in page
+    assert b'type="checkbox" checked disabled' in page
+    assert b'<span>Add Recurring Expense</span>' in page
+    assert page.index(b'id="recurringExpenseForm"') < page.index(b'id="recurringExpenseRows"')
+    assert 'recurring: true' in script
+    assert 'await api("/api/expenses", { method: "POST"' in script
+
+
 def test_dashboard_includes_calculators_directory(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database

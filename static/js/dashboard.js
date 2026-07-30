@@ -1283,6 +1283,40 @@ function openRecurringExpensesModal() {
     navigateTo("recurring");
 }
 
+function resetRecurringExpenseForm() {
+    document.getElementById("recurringExpenseForm").reset();
+    document.getElementById("recurringExpenseDate").value = localToday();
+    document.getElementById("recurringExpenseRecurring").checked = true;
+    document.getElementById("recurringExpenseRecurrenceInterval").value = 1;
+    document.getElementById("recurringExpenseRecurrenceUnit").value = "month";
+    document.getElementById("recurringExpenseError").classList.add("d-none");
+}
+
+async function submitRecurringExpense(event) {
+    event.preventDefault();
+    const form = document.getElementById("recurringExpenseForm");
+    if (!form.reportValidity()) return;
+    const payload = {
+        description: document.getElementById("recurringExpenseDescription").value.trim(),
+        category: document.getElementById("recurringExpenseCategory").value,
+        amount: parseFloat(document.getElementById("recurringExpenseAmount").value),
+        expense_date: document.getElementById("recurringExpenseDate").value,
+        recurring: true,
+        recurrence_interval: parseInt(document.getElementById("recurringExpenseRecurrenceInterval").value, 10) || 1,
+        recurrence_unit: document.getElementById("recurringExpenseRecurrenceUnit").value,
+    };
+    try {
+        await api("/api/expenses", { method: "POST", body: JSON.stringify(payload) });
+        await loadDashboard();
+        await loadLiabilityAutocomplete();
+        resetRecurringExpenseForm();
+        renderRecurringExpensesPage();
+        document.getElementById("recurringExpenseDescription").focus();
+    } catch (err) {
+        showExpenseSubmissionError(err, document.getElementById("recurringExpenseError"));
+    }
+}
+
 function handleRecurringExpenseSearch() {
     visibleRecurringExpenseLimit = 5;
     renderRecurringExpensesPage();
@@ -1434,6 +1468,7 @@ async function deleteExpense(id) {
 initializeTheme();
 initializeCategoryReordering();
 initializeRetirementCalculator();
+resetRecurringExpenseForm();
 initializeDashboard();
 setInterval(async () => {
     const previousRun = workspaceSchedule?.next_run;
