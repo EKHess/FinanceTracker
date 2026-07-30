@@ -188,7 +188,9 @@ html[data-bs-theme="dark"] .workspace-save-notice { color: #b8c2cc; background: 
 .recurring-summary strong { color: var(--ink); font-size: 22px; }
 .recurring-summary button { width: fit-content; padding: 2px 0; border: 0; background: transparent; color: #0879e8; font-size: 13px; font-weight: 700; }
 .recurring-summary button:disabled { color: #9eabb5; cursor: not-allowed; }
-.recurring-items-panel { padding-top: 10px; }
+.recurring-items-panel { padding-top: 24px; }
+.recurring-expense-form { margin-bottom: 2px; }
+.recurring-expense-form .form-check-input:disabled { opacity: 1; cursor: not-allowed; }
 .global-balance-panel { display: grid; grid-template-columns: minmax(280px,.85fr) minmax(420px,1.4fr); gap: 28px; align-items: center; padding: 24px 26px; border: 1px solid #cfe3da; border-radius: 12px; background: linear-gradient(120deg,#fff 35%,#f0faf5); box-shadow: 0 5px 18px rgba(15,55,39,.05); }
 .global-balance-panel.is-deficit { border-color: #f0cece; background: linear-gradient(120deg,#fff 35%,#fff5f4); }
 .global-balance-summary { display: flex; gap: 17px; align-items: center; }
