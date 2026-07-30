@@ -340,6 +340,41 @@ def test_creating_category_updates_workspace_without_changing_past_reports(tmp_p
     assert travel["count"] == 1
 
 
+def test_category_snapshots_remain_fixed_after_application_restart(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    earlier_report = client.post(
+        "/api/scorecards",
+        json={"name": "Before travel", "start_date": "2026-06-01", "end_date": "2026-06-30"},
+    ).get_json()
+    custom = client.post("/api/categories", json={"label": "Travel", "color": "#12AB34"}).get_json()
+
+    # Database initialization runs at every application startup. It must only
+    # backfill legacy reports that have no category snapshot at all.
+    importlib.reload(database)
+    importlib.reload(app_module)
+    restarted_client = app_module.app.test_client()
+
+    earlier_categories = restarted_client.get(f'/api/scorecards/{earlier_report["id"]}').get_json()["categories"]
+    assert custom["id"] not in {category["id"] for category in earlier_categories}
+
+    earlier_pdf = restarted_client.get("/api/scorecards/export.pdf")
+    assert earlier_pdf.status_code == 200
+    assert b"Travel" not in earlier_pdf.data
+
+    later_report = restarted_client.post(
+        "/api/scorecards",
+        json={"name": "After travel", "start_date": "2026-07-01", "end_date": "2026-07-31"},
+    ).get_json()
+    later_categories = restarted_client.get(f'/api/scorecards/{later_report["id"]}').get_json()["categories"]
+    assert custom["id"] in {category["id"] for category in later_categories}
+
+
 def test_creating_category_validates_title_and_color(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
