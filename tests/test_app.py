@@ -306,6 +306,52 @@ def test_category_edits_validate_title_and_hex_color(tmp_path, monkeypatch):
     assert client.put("/api/categories/fixed", json={"label": "Essentials", "color": "blue"}).status_code == 400
 
 
+def test_creating_category_updates_workspace_without_changing_past_reports(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    report = client.post(
+        "/api/scorecards",
+        json={"name": "Before custom category", "start_date": "2026-07-01", "end_date": "2026-07-31"},
+    ).get_json()
+    response = client.post("/api/categories", json={"label": "Travel", "color": "#12ab34"})
+
+    assert response.status_code == 201
+    category = response.get_json()
+    assert category["label"] == "Travel"
+    assert category["color"] == "#12AB34"
+    assert category["icon"] == "tag-fill"
+    workspace_categories = client.get("/api/dashboard").get_json()["categories"]
+    assert category["id"] in {item["id"] for item in workspace_categories}
+    saved_categories = client.get(f'/api/scorecards/{report["id"]}').get_json()["categories"]
+    assert category["id"] not in {item["id"] for item in saved_categories}
+
+    expense = client.post(
+        "/api/expenses",
+        json={"description": "Train ticket", "amount": 75, "category": category["id"]},
+    )
+    assert expense.status_code == 200
+    travel = next(item for item in client.get("/api/dashboard").get_json()["categories"] if item["id"] == category["id"])
+    assert travel["total"] == 75
+    assert travel["count"] == 1
+
+
+def test_creating_category_validates_title_and_color(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/categories", json={"label": "", "color": "#123ABC"}).status_code == 400
+    assert client.post("/api/categories", json={"label": "Travel", "color": "green"}).status_code == 400
+
+
 def test_deleting_category_clears_current_expenses_but_preserves_saved_report(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
