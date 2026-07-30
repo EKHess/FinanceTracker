@@ -560,6 +560,10 @@ def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_p
     before_annual_due_date = client.get("/api/dashboard").get_json()
     assert [expense["description"] for expense in before_annual_due_date["expenses"]] == ["Home Insurance"]
     assert before_annual_due_date["summary"]["spending"] == 172
+    assert [
+        expense["description"]
+        for expense in client.get("/api/expenses?category=guilt_free").get_json()
+    ] == []
 
     set_period("2031-01-20", "2031-02-20")
     annual_due_period = client.get("/api/dashboard").get_json()
@@ -568,6 +572,9 @@ def test_recurring_expenses_only_apply_to_periods_containing_an_occurrence(tmp_p
         "Home Insurance", "LingQ Subscription",
     }
     assert annual_due_period["summary"]["spending"] == 347
+    annual_category_expenses = client.get("/api/expenses?category=guilt_free").get_json()
+    assert [expense["description"] for expense in annual_category_expenses] == ["LingQ Subscription"]
+    assert annual_category_expenses[0]["expense_date"] == "2031-01-21"
 
 
 def test_recurring_expenses_repeat_for_every_occurrence_in_workspace_period(tmp_path, monkeypatch):

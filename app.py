@@ -6,7 +6,7 @@ from flask import Flask, Response, jsonify, render_template, request, send_file
 
 import database
 from database import get_current_month, import_database_file, initialize_database
-from services.expenses import add_expense, delete_expense, get_expenses, update_expense
+from services.expenses import add_expense, delete_expense, get_expenses, get_workspace_expenses, update_expense
 from services.categories import delete_category, get_category_config, update_category
 from services.finance import dashboard_summary
 from services.global_balance import draw_from_surplus, get_global_balance, save_deficit_pledge
@@ -213,7 +213,11 @@ def api_delete_category(category_id):
 @app.route("/api/expenses")
 def api_expenses():
     month = get_current_month()
-    return jsonify(get_expenses(month["id"], request.args.get("category")))
+    category = request.args.get("category")
+    # Category drill-downs represent current workspace spending. Keep the
+    # unfiltered endpoint as the expense manager's complete source of truth.
+    expenses = get_workspace_expenses(month["id"], category) if category else get_expenses(month["id"])
+    return jsonify(expenses)
 
 
 @app.route("/api/expenses", methods=["POST"])
