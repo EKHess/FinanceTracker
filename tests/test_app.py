@@ -306,6 +306,131 @@ def test_category_edits_validate_title_and_hex_color(tmp_path, monkeypatch):
     assert client.put("/api/categories/fixed", json={"label": "Essentials", "color": "blue"}).status_code == 400
 
 
+def test_creating_category_updates_workspace_without_changing_past_reports(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    report = client.post(
+        "/api/scorecards",
+        json={"name": "Before custom category", "start_date": "2026-07-01", "end_date": "2026-07-31"},
+    ).get_json()
+    response = client.post("/api/categories", json={"label": "Travel", "color": "#12ab34"})
+
+    assert response.status_code == 201
+    category = response.get_json()
+    assert category["label"] == "Travel"
+    assert category["color"] == "#12AB34"
+    assert category["icon"] == "tag-fill"
+    workspace_categories = client.get("/api/dashboard").get_json()["categories"]
+    assert category["id"] in {item["id"] for item in workspace_categories}
+    saved_categories = client.get(f'/api/scorecards/{report["id"]}').get_json()["categories"]
+    assert category["id"] not in {item["id"] for item in saved_categories}
+
+    expense = client.post(
+        "/api/expenses",
+        json={"description": "Train ticket", "amount": 75, "category": category["id"]},
+    )
+    assert expense.status_code == 200
+    travel = next(item for item in client.get("/api/dashboard").get_json()["categories"] if item["id"] == category["id"])
+    assert travel["total"] == 75
+    assert travel["count"] == 1
+
+
+def test_category_snapshots_remain_fixed_after_application_restart(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    earlier_report = client.post(
+        "/api/scorecards",
+        json={"name": "Before travel", "start_date": "2026-06-01", "end_date": "2026-06-30"},
+    ).get_json()
+    custom = client.post("/api/categories", json={"label": "Travel", "color": "#12AB34"}).get_json()
+
+    # Database initialization runs at every application startup. It must only
+    # backfill legacy reports that have no category snapshot at all.
+    importlib.reload(database)
+    importlib.reload(app_module)
+    restarted_client = app_module.app.test_client()
+
+    earlier_categories = restarted_client.get(f'/api/scorecards/{earlier_report["id"]}').get_json()["categories"]
+    assert custom["id"] not in {category["id"] for category in earlier_categories}
+
+    earlier_pdf = restarted_client.get("/api/scorecards/export.pdf")
+    assert earlier_pdf.status_code == 200
+    assert b"Travel" not in earlier_pdf.data
+
+    later_report = restarted_client.post(
+        "/api/scorecards",
+        json={"name": "After travel", "start_date": "2026-07-01", "end_date": "2026-07-31"},
+    ).get_json()
+    later_categories = restarted_client.get(f'/api/scorecards/{later_report["id"]}').get_json()["categories"]
+    assert custom["id"] in {category["id"] for category in later_categories}
+
+
+def test_pdf_category_summary_wraps_after_four_categories():
+    from services.pdf_reports import MARGIN, PAGE_WIDTH, PdfDocument, _draw_report
+
+    categories = [
+        {
+            "id": f"category_{index}",
+            "label": f"Category {index}",
+            "color": "#123ABC",
+            "total": index,
+            "count": 0,
+            "expenses": [],
+        }
+        for index in range(6)
+    ]
+    report = {
+        "name": "Many categories",
+        "start_date": "2026-07-01",
+        "end_date": "2026-07-31",
+        "total_spending": 0,
+        "surplus": 0,
+        "global_balance": 0,
+        "net_worth": 0,
+        "categories": categories,
+        "summary": {
+            "largest_expense": None,
+            "largest_category": None,
+            "expense_count": 0,
+            "recurring_count": 0,
+            "recurring_percent": 0,
+        },
+    }
+    pdf = PdfDocument()
+    _draw_report(pdf, report)
+
+    category_rectangles = [
+        command for command in pdf.page
+        if command.startswith("1.000 1.000 1.000 rg 0.071 0.227 0.737 RG") and " re B" in command
+    ]
+    assert len(category_rectangles) == 6
+    assert f"{MARGIN:.1f} 592.0" in category_rectangles[0]
+    assert f"{MARGIN:.1f} 556.0" in category_rectangles[4]
+    assert all(float(command.split()[-6]) + float(command.split()[-4]) <= PAGE_WIDTH - MARGIN for command in category_rectangles)
+
+
+def test_creating_category_validates_title_and_color(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/categories", json={"label": "", "color": "#123ABC"}).status_code == 400
+    assert client.post("/api/categories", json={"label": "Travel", "color": "green"}).status_code == 400
+
+
 def test_deleting_category_clears_current_expenses_but_preserves_saved_report(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
@@ -460,6 +585,40 @@ def test_global_surplus_draw_is_capped_and_allocated_to_category(tmp_path, monke
     assert saved_draw["description"] == "Weekend away"
     pdf = client.get("/api/scorecards/export.pdf").data
     assert b"Marked expenses came from global surplus" in pdf
+
+
+def test_global_balance_actions_accept_newly_created_categories(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import database
+    import app as app_module
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    client.post("/api/income", json={"income": 1000})
+    client.post("/api/expenses", json={"description": "Past spending", "amount": 600, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved surplus", "start_date": "2026-01-01", "end_date": "2026-01-31"})
+    custom_id = client.post("/api/categories", json={"label": "Travel", "color": "#12AB34"}).get_json()["id"]
+
+    draw = client.post(
+        "/api/global-balance/draw",
+        json={"amount": 100, "category": custom_id, "description": "Train ticket"},
+    )
+    assert draw.status_code == 200
+    custom_draw = next(expense for expense in client.get("/api/expenses").get_json() if expense["global_type"] == "draw")
+    assert custom_draw["category"] == custom_id
+
+    client.post("/api/income", json={"income": 100})
+    client.post("/api/expenses", json={"description": "Emergency", "amount": 800, "category": "fixed"})
+    client.post("/api/scorecards", json={"name": "Saved deficit", "start_date": "2026-02-01", "end_date": "2026-02-28"})
+    client.post("/api/income", json={"income": 200})
+    assert client.get("/api/global-balance").get_json()["balance"] == -400
+
+    pledge = client.post("/api/global-balance/pledge", json={"amount": 75, "category": custom_id})
+    assert pledge.status_code == 200
+    assert pledge.get_json()["pledge_category"] == custom_id
+    custom_pledge = next(expense for expense in client.get("/api/expenses").get_json() if expense["global_type"] == "pledge")
+    assert custom_pledge["category"] == custom_id
 
 
 def test_global_balance_ignores_unsaved_workspace_result(tmp_path, monkeypatch):

@@ -1,8 +1,7 @@
 from datetime import date
 
-from config import CATEGORY_CONFIG
 from database import get_connection
-from services.expenses import get_workspace_expenses
+from services.expenses import get_workspace_expenses, normalize_category
 from services.net_worth import apply_liability_payment
 
 
@@ -17,7 +16,7 @@ def get_global_balance(month_id):
         "SELECT COALESCE(SUM(income - total_spending), 0) FROM scorecards"
     ).fetchone()[0]
     pledge = conn.execute(
-        "SELECT id, amount FROM expenses WHERE month_id = ? AND global_type = 'pledge' LIMIT 1",
+        "SELECT id, amount, category FROM expenses WHERE month_id = ? AND global_type = 'pledge' LIMIT 1",
         (month_id,),
     ).fetchone()
     draws = conn.execute(
@@ -38,12 +37,14 @@ def get_global_balance(month_id):
         "current_contribution": round(current_contribution, 2),
         "pledge": round(pledge_amount, 2),
         "pledge_expense_id": pledge["id"] if pledge else None,
+        "pledge_category": pledge["category"] if pledge else "savings",
         "drawn_this_period": round(float(draws), 2),
     }
 
 
-def save_deficit_pledge(month_id, amount):
+def save_deficit_pledge(month_id, amount, category="savings"):
     amount = float(amount)
+    category = normalize_category(category)
     state = get_global_balance(month_id)
     if amount <= 0:
         raise ValueError("Pledge must be greater than zero")
@@ -69,11 +70,14 @@ def save_deficit_pledge(month_id, amount):
         "SELECT id FROM expenses WHERE month_id = ? AND global_type = 'pledge' LIMIT 1", (month_id,)
     ).fetchone()
     if existing:
-        conn.execute("UPDATE expenses SET amount = ?, expense_date = ? WHERE id = ?", (amount, date.today().isoformat(), existing["id"]))
+        conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, expense_date = ? WHERE id = ?",
+            (amount, category, date.today().isoformat(), existing["id"]),
+        )
     else:
         conn.execute(
-            "INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type) VALUES (?, ?, ?, 'savings', 0, ?, 1, 'month', 'pledge')",
-            (month_id, "Global deficit payoff", amount, date.today().isoformat()),
+            "INSERT INTO expenses (month_id, description, amount, category, recurring, expense_date, recurrence_interval, recurrence_unit, global_type) VALUES (?, ?, ?, ?, 0, ?, 1, 'month', 'pledge')",
+            (month_id, "Global deficit payoff", amount, category, date.today().isoformat()),
         )
     conn.commit()
     conn.close()
@@ -82,13 +86,12 @@ def save_deficit_pledge(month_id, amount):
 
 def draw_from_surplus(month_id, amount, category, description="Global surplus allocation"):
     amount = float(amount)
+    category = normalize_category(category)
     state = get_global_balance(month_id)
     if amount <= 0:
         raise ValueError("Draw amount must be greater than zero")
     if state["balance"] <= 0 or amount > state["balance"]:
         raise ValueError("Draw cannot exceed the available global surplus")
-    if category not in CATEGORY_CONFIG:
-        raise ValueError("Unknown expense category")
     conn = get_connection()
     clean_description = (description or "Global surplus allocation").strip()
     try:

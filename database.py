@@ -187,6 +187,10 @@ def initialize_database():
         INSERT OR IGNORE INTO scorecard_categories(scorecard_id, category_id, label, color, icon, display_order)
         SELECT scorecards.id, categories.id, categories.label, categories.color, categories.icon, categories.display_order
         FROM scorecards CROSS JOIN categories
+        WHERE NOT EXISTS (
+            SELECT 1 FROM scorecard_categories existing
+            WHERE existing.scorecard_id = scorecards.id
+        )
     """)
 
     _ensure_column(cursor, "months", "income_mode", "TEXT NOT NULL DEFAULT 'simple'")

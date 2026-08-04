@@ -1,4 +1,5 @@
 import re
+import uuid
 
 from database import get_connection
 from services.net_worth import restore_liability_payment
@@ -14,7 +15,7 @@ def get_category_config():
     return {row["id"]: {"label": row["label"], "color": row["color"], "icon": row["icon"]} for row in rows}
 
 
-def update_category(category_id, label, color):
+def _validate_category_details(label, color):
     label = (label or "").strip()
     color = (color or "").strip().upper()
     if not label:
@@ -23,6 +24,26 @@ def update_category(category_id, label, color):
         raise ValueError("Category title must be 60 characters or fewer")
     if not HEX_COLOR.fullmatch(color):
         raise ValueError("Color must be a six-digit hexadecimal code such as #15975D")
+    return label, color
+
+
+def create_category(label, color):
+    label, color = _validate_category_details(label, color)
+    category_id = f"custom_{uuid.uuid4().hex}"
+    conn = get_connection()
+    display_order = conn.execute("SELECT COALESCE(MAX(display_order), -1) + 1 FROM categories").fetchone()[0]
+    conn.execute(
+        "INSERT INTO categories(id, label, color, icon, display_order) VALUES(?,?,?,?,?)",
+        (category_id, label, color, "tag-fill", display_order),
+    )
+    conn.commit()
+    row = conn.execute("SELECT id, label, color, icon FROM categories WHERE id = ?", (category_id,)).fetchone()
+    conn.close()
+    return dict(row)
+
+
+def update_category(category_id, label, color):
+    label, color = _validate_category_details(label, color)
 
     conn = get_connection()
     cursor = conn.execute("UPDATE categories SET label = ?, color = ? WHERE id = ?", (label, color, category_id))

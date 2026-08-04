@@ -52,20 +52,21 @@ function saveCategoryOrder() {
 
 function initializeCategoryReordering() {
     const table = document.querySelector(".categories-table");
-    if (!table) return;
+    if (!table || table.dataset.reorderingInitialized) return;
+    table.dataset.reorderingInitialized = "true";
     let draggedRow = null;
-    table.querySelectorAll(".category-order").forEach((handle) => {
-        handle.addEventListener("dragstart", (event) => {
-            draggedRow = handle.closest(".categories-table-row");
-            draggedRow.classList.add("is-dragging");
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", draggedRow.dataset.categoryId);
-        });
-        handle.addEventListener("dragend", () => {
-            draggedRow?.classList.remove("is-dragging");
-            table.querySelectorAll(".drag-over").forEach((row) => row.classList.remove("drag-over"));
-            draggedRow = null;
-        });
+    table.addEventListener("dragstart", (event) => {
+        const handle = event.target.closest(".category-order");
+        if (!handle) return;
+        draggedRow = handle.closest(".categories-table-row");
+        draggedRow.classList.add("is-dragging");
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedRow.dataset.categoryId);
+    });
+    table.addEventListener("dragend", () => {
+        draggedRow?.classList.remove("is-dragging");
+        table.querySelectorAll(".drag-over").forEach((row) => row.classList.remove("drag-over"));
+        draggedRow = null;
     });
     table.addEventListener("dragover", (event) => {
         if (!draggedRow) return;
@@ -93,6 +94,62 @@ function openCategoryEditor(categoryId) {
     document.getElementById("categoryEditorColorText").value = category.color.slice(1).toUpperCase();
     document.getElementById("categoryEditorError").classList.add("d-none");
     new bootstrap.Modal(document.getElementById("categoryEditorModal")).show();
+}
+
+function openCategoryCreator() {
+    document.getElementById("categoryCreatorLabel").value = "";
+    document.getElementById("categoryCreatorColorPicker").value = "#15975d";
+    document.getElementById("categoryCreatorColorText").value = "15975D";
+    document.getElementById("categoryCreatorError").classList.add("d-none");
+    const modalElement = document.getElementById("categoryCreatorModal");
+    new bootstrap.Modal(modalElement).show();
+    modalElement.addEventListener("shown.bs.modal", () => document.getElementById("categoryCreatorLabel").focus(), { once: true });
+}
+
+function syncCreatorColorFromPicker() {
+    document.getElementById("categoryCreatorColorText").value = document.getElementById("categoryCreatorColorPicker").value.slice(1).toUpperCase();
+}
+
+function syncCreatorColorFromText() {
+    const value = document.getElementById("categoryCreatorColorText").value.trim();
+    if (/^[0-9a-f]{6}$/i.test(value)) document.getElementById("categoryCreatorColorPicker").value = `#${value}`;
+}
+
+function addCategoryManagementRow(category) {
+    const row = document.createElement("div");
+    row.className = "categories-table-row";
+    row.setAttribute("role", "row");
+    row.dataset.categoryId = category.id;
+    row.innerHTML = `<strong role="cell">${escapeHtml(category.label)}</strong><span class="category-color" role="cell"><i style="background:${category.color}"></i>${category.color}</span><span class="category-actions" role="cell"><button type="button" aria-label="Edit ${escapeHtml(category.label)}"><i class="bi bi-pencil"></i></button><button type="button" aria-label="Delete ${escapeHtml(category.label)}"><i class="bi bi-trash3"></i></button></span><button class="category-order" type="button" role="cell" draggable="true" aria-label="Drag to reorder ${escapeHtml(category.label)}" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></button>`;
+    const actions = row.querySelectorAll(".category-actions button");
+    actions[0].addEventListener("click", () => openCategoryEditor(category.id));
+    actions[1].addEventListener("click", () => deleteCategory(category.id));
+    document.querySelector(".categories-table").appendChild(row);
+}
+
+async function saveNewCategory(event) {
+    event.preventDefault();
+    const error = document.getElementById("categoryCreatorError");
+    error.classList.add("d-none");
+    try {
+        const category = await api("/api/categories", { method: "POST", body: JSON.stringify({
+            label: document.getElementById("categoryCreatorLabel").value,
+            color: `#${document.getElementById("categoryCreatorColorText").value}`,
+        }) });
+        window.CATEGORY_CONFIG[category.id] = category;
+        addCategoryManagementRow(category);
+        document.querySelectorAll("select option[value='']").forEach((placeholder) => {
+            const select = placeholder.closest("select");
+            if (select && !select.querySelector(`option[value="${category.id}"]`)) select.add(new Option(category.label, category.id));
+        });
+        saveCategoryOrder();
+        await loadDashboard();
+        await initializeWorkspaceNavigation(true);
+        bootstrap.Modal.getInstance(document.getElementById("categoryCreatorModal")).hide();
+    } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("d-none");
+    }
 }
 
 function syncCategoryColorFromPicker() {
@@ -633,15 +690,20 @@ function renderGlobalBalance(state) {
         ? "Global deficit · current income will help bring this back to zero"
         : "Available surplus carried from past financial reports";
     document.getElementById("globalPledgeAmount").value = state.pledge || "";
+    document.getElementById("globalPledgeCategory").value = state.pledge_category || "savings";
     document.getElementById("globalPledgeButtonLabel").textContent = state.pledge ? "Update pledge" : "Make pledge";
+    const pledgeCategory = window.CATEGORY_CONFIG[state.pledge_category || "savings"]?.label || "the selected category";
     document.getElementById("globalPledgeHint").textContent = state.pledge
-        ? `${money.format(state.pledge)} is pledged this period. Updating it will revise the highlighted Savings expense.`
-        : "Earmark unallocated income as Savings. You can revise this pledge at any time.";
+        ? `${money.format(state.pledge)} is pledged this period. Updating it will revise the highlighted ${pledgeCategory} expense.`
+        : "Earmark unallocated income in any category. You can revise this pledge at any time.";
 }
 
 async function saveGlobalPledge(event) {
     event.preventDefault();
-    await submitGlobalAction("/api/global-balance/pledge", { amount: parseFloat(document.getElementById("globalPledgeAmount").value) });
+    await submitGlobalAction("/api/global-balance/pledge", {
+        amount: parseFloat(document.getElementById("globalPledgeAmount").value),
+        category: document.getElementById("globalPledgeCategory").value,
+    });
 }
 
 async function drawGlobalSurplus(event) {
@@ -767,6 +829,18 @@ function renderSummary(summary) {
 }
 
 function renderCategories(categories) {
+    const cards = document.getElementById("categoryCards");
+    cards.innerHTML = "";
+    const historical = workspaceTimeline[workspaceIndex]?.id != null;
+    categories.forEach((category) => {
+        const button = document.createElement("button");
+        button.className = "category-row";
+        button.dataset.categoryId = category.id;
+        button.disabled = historical;
+        button.addEventListener("click", () => showCategory(category.id));
+        button.innerHTML = `<span class="category-icon" style="color:${category.color};background:${category.color}18"><i class="bi bi-${category.icon}"></i></span><strong>${escapeHtml(category.label)}</strong><span class="category-amount" id="${category.id}-total">$0.00</span><span class="category-percent" id="${category.id}-percent">0.0%</span><span class="visually-hidden" id="${category.id}-count">0</span><span class="visually-hidden" id="${category.id}-caption">0 expenses</span>`;
+        cards.appendChild(button);
+    });
     const income = Number(dashboardState.summary.income) || 0;
     categories.forEach((category) => {
         const percentage = income > 0 ? (Number(category.total) / income) * 100 : 0;
