@@ -8,6 +8,9 @@ MUTED = "718096"
 GREEN = "15975d"
 RED = "d84e4e"
 LINE = "e4eaf0"
+CATEGORY_COLUMNS = 4
+CATEGORY_CARD_HEIGHT = 30
+CATEGORY_GAP = 6
 
 
 def _rgb(hex_color):
@@ -125,12 +128,15 @@ def _draw_report(pdf, report):
         pdf.text(x + 10, 670, _money(value), 16, color, True)
 
     pdf.text(MARGIN, 632, "SPENDING BY CATEGORY", 8, MUTED, True)
-    category_width = (PAGE_WIDTH - MARGIN * 2 - 18) / 4
+    category_width = (PAGE_WIDTH - MARGIN * 2 - CATEGORY_GAP * (CATEGORY_COLUMNS - 1)) / CATEGORY_COLUMNS
     for index, category in enumerate(report["categories"]):
-        x = MARGIN + index * (category_width + 6)
-        pdf.rect(x, 592, category_width, 30, "ffffff", category["color"].lstrip("#"))
-        pdf.text(x + 7, 608, category["label"], 7, MUTED)
-        pdf.text(x + 7, 597, _money(category["total"]), 9, INK, True)
+        row, column = divmod(index, CATEGORY_COLUMNS)
+        x = MARGIN + column * (category_width + CATEGORY_GAP)
+        card_y = 592 - row * (CATEGORY_CARD_HEIGHT + CATEGORY_GAP)
+        pdf.rect(x, card_y, category_width, CATEGORY_CARD_HEIGHT, "ffffff", category["color"].lstrip("#"))
+        label = category["label"] if len(category["label"]) <= 28 else f"{category['label'][:27]}…"
+        pdf.text(x + 7, card_y + 16, label, 7, MUTED)
+        pdf.text(x + 7, card_y + 5, _money(category["total"]), 9, INK, True)
 
     summary = report["summary"]
     largest = summary["largest_expense"]
@@ -140,7 +146,8 @@ def _draw_report(pdf, report):
         f"Largest category: {largest_category['label']} ({_money(largest_category['total'])})" if largest_category else "Largest category: None",
         f"Expenses: {summary['expense_count']}    Recurring: {summary['recurring_count']}    Recurring spending: {summary['recurring_percent']:.1f}%",
     ]
-    y = 570
+    category_rows = max(1, (len(report["categories"]) + CATEGORY_COLUMNS - 1) // CATEGORY_COLUMNS)
+    y = 570 - (category_rows - 1) * (CATEGORY_CARD_HEIGHT + CATEGORY_GAP)
     for index, insight in enumerate(insights):
         pdf.text(MARGIN, y, insight, 9, INK, y == 570)
         if index == 0 and largest and largest.get("global_type") == "draw":

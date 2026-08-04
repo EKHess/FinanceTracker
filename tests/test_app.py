@@ -375,6 +375,50 @@ def test_category_snapshots_remain_fixed_after_application_restart(tmp_path, mon
     assert custom["id"] in {category["id"] for category in later_categories}
 
 
+def test_pdf_category_summary_wraps_after_four_categories():
+    from services.pdf_reports import MARGIN, PAGE_WIDTH, PdfDocument, _draw_report
+
+    categories = [
+        {
+            "id": f"category_{index}",
+            "label": f"Category {index}",
+            "color": "#123ABC",
+            "total": index,
+            "count": 0,
+            "expenses": [],
+        }
+        for index in range(6)
+    ]
+    report = {
+        "name": "Many categories",
+        "start_date": "2026-07-01",
+        "end_date": "2026-07-31",
+        "total_spending": 0,
+        "surplus": 0,
+        "global_balance": 0,
+        "net_worth": 0,
+        "categories": categories,
+        "summary": {
+            "largest_expense": None,
+            "largest_category": None,
+            "expense_count": 0,
+            "recurring_count": 0,
+            "recurring_percent": 0,
+        },
+    }
+    pdf = PdfDocument()
+    _draw_report(pdf, report)
+
+    category_rectangles = [
+        command for command in pdf.page
+        if command.startswith("1.000 1.000 1.000 rg 0.071 0.227 0.737 RG") and " re B" in command
+    ]
+    assert len(category_rectangles) == 6
+    assert f"{MARGIN:.1f} 592.0" in category_rectangles[0]
+    assert f"{MARGIN:.1f} 556.0" in category_rectangles[4]
+    assert all(float(command.split()[-6]) + float(command.split()[-4]) <= PAGE_WIDTH - MARGIN for command in category_rectangles)
+
+
 def test_creating_category_validates_title_and_color(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     import database
