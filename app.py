@@ -1,5 +1,6 @@
 import calendar
 import csv
+import json
 from io import BytesIO, StringIO
 
 from flask import Flask, Response, jsonify, render_template, request, send_file
@@ -321,6 +322,33 @@ def api_create_scorecard():
 @app.route("/api/workspace-schedule")
 def api_workspace_schedule():
     return jsonify(get_workspace_schedule())
+
+
+@app.route("/api/settings", methods=["GET", "PUT"])
+def api_settings():
+    conn = database.get_connection()
+    if request.method == "PUT":
+        data = request.get_json() or {}
+        allowed = {"theme", "category_order"}
+        for key, value in data.items():
+            if key not in allowed:
+                conn.close()
+                return jsonify({"error": f"Unknown setting: {key}"}), 400
+            if key == "theme" and value not in {"light", "dark"}:
+                conn.close()
+                return jsonify({"error": "Theme must be light or dark"}), 400
+            if key == "category_order" and not isinstance(value, list):
+                conn.close()
+                return jsonify({"error": "Category order must be a list"}), 400
+            conn.execute(
+                """INSERT INTO app_settings(key, value) VALUES(?, ?)
+                   ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP""",
+                (key, json.dumps(value)),
+            )
+        conn.commit()
+    rows = conn.execute("SELECT key, value FROM app_settings").fetchall()
+    conn.close()
+    return jsonify({row["key"]: json.loads(row["value"]) for row in rows})
 
 @app.route("/api/workspace-schedule", methods=["PUT"])
 def api_save_workspace_schedule():

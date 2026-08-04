@@ -1,18 +1,25 @@
+import os
 import shutil
 import sqlite3
 import tempfile
 from pathlib import Path
 from datetime import date, datetime
 
-DATABASE_FOLDER = Path("data")
+# Keep the live database anchored to the installation, rather than to the
+# process' working directory. Desktop launchers, IDEs, and service managers can
+# all start Flask from different directories; a relative path made each of
+# those starts look like a brand-new workspace.
+DATABASE = Path(os.environ.get("FINANCE_TRACKER_DATABASE", Path(__file__).resolve().parent / "data" / "finance.db"))
+DATABASE_FOLDER = DATABASE.parent
 DATABASE_FOLDER.mkdir(exist_ok=True)
-
-DATABASE = DATABASE_FOLDER / "finance.db"
 
 
 def get_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
+    conn.execute("PRAGMA synchronous = FULL")
     return conn
 
 
@@ -163,6 +170,13 @@ def initialize_database():
         color TEXT NOT NULL,
         icon TEXT NOT NULL,
         display_order INTEGER NOT NULL
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
     cursor.execute("""

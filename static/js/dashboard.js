@@ -11,6 +11,7 @@ let visibleRecurringExpenseLimit = 5;
 let workspaceSchedule = null;
 let financialReports = [];
 const CATEGORY_ORDER_KEY = "finance-tracker-category-order";
+const THEME_KEY = "finance-tracker-theme";
 
 function getCategoryOrder() {
     const fallback = Object.keys(window.CATEGORY_CONFIG);
@@ -39,9 +40,16 @@ function applyCategoryOrder() {
     moveChildren(document.getElementById("categoryCards"), ".category-row");
 }
 
+function persistSettings(settings) {
+    return api("/api/settings", { method: "PUT", body: JSON.stringify(settings) })
+        .catch((error) => console.warn("Unable to persist settings", error));
+}
+
 function saveCategoryOrder() {
     const rows = [...document.querySelectorAll(".categories-table-row")];
-    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(rows.map((row) => row.dataset.categoryId)));
+    const order = rows.map((row) => row.dataset.categoryId);
+    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(order));
+    persistSettings({ category_order: order });
     applyCategoryOrder();
     if (dashboardState.categories?.length) {
         dashboardState.categories = orderCategories(dashboardState.categories);
@@ -210,7 +218,9 @@ async function deleteCategory(categoryId) {
         document.querySelector(`#categoryCards [data-category-id="${categoryId}"]`)?.remove();
         document.querySelectorAll(`option[value="${categoryId}"]`).forEach((option) => option.remove());
         delete window.CATEGORY_CONFIG[categoryId];
-        localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(getCategoryOrder().filter((id) => id !== categoryId)));
+        const order = getCategoryOrder().filter((id) => id !== categoryId);
+        localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(order));
+        persistSettings({ category_order: order });
         await loadDashboard();
         renderExpenseManager();
         renderRecurringExpensesPage();
@@ -219,17 +229,26 @@ async function deleteCategory(categoryId) {
     }
 }
 
-function setDarkMode(enabled) {
+function setDarkMode(enabled, persist = true) {
     const theme = enabled ? "dark" : "light";
     document.documentElement.dataset.bsTheme = theme;
-    localStorage.setItem("finance-tracker-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
+    if (persist) persistSettings({ theme });
     const toggle = document.getElementById("darkModeToggle");
     if (toggle) toggle.checked = enabled;
     if (categoryChart) categoryChart.draw();
 }
 
 function initializeTheme() {
-    setDarkMode(document.documentElement.dataset.bsTheme === "dark");
+    setDarkMode(document.documentElement.dataset.bsTheme === "dark", false);
+}
+
+async function restoreSettings() {
+    const settings = await api("/api/settings");
+    if (settings.theme) setDarkMode(settings.theme === "dark", false);
+    if (Array.isArray(settings.category_order)) {
+        localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(settings.category_order));
+    }
 }
 
 function navigateTo(page) {
@@ -796,6 +815,7 @@ async function displayWorkspace(index) {
 }
 
 async function initializeDashboard() {
+    await restoreSettings();
     await loadWorkspaceSchedule();
     await loadDashboard();
     await loadLiabilityAutocomplete();

@@ -1,6 +1,6 @@
 import importlib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -498,6 +498,8 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
 
     client = app_module.app.test_client()
     assert client.post("/api/income", json={"income": 1000}).status_code == 200
+    schedule = client.get("/api/workspace-schedule").get_json()
+    last_period_day = (datetime.fromisoformat(schedule["next_run"]) - timedelta(days=1)).date().isoformat()
     assert client.post(
         "/api/expenses",
         json={
@@ -507,6 +509,7 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
             "recurring": True,
             "recurrence_interval": 2,
             "recurrence_unit": "week",
+            "expense_date": last_period_day,
         },
     ).status_code == 200
 
@@ -531,6 +534,43 @@ def test_expense_crud_updates_dashboard(tmp_path, monkeypatch):
     ).status_code == 200
     assert client.delete(f"/api/expenses/{expense_id}").status_code == 200
     assert client.get("/api/dashboard").get_json()["summary"]["spending"] == 0
+
+
+def test_database_and_settings_survive_restart_from_another_working_directory(tmp_path, monkeypatch):
+    import database
+    import app as app_module
+
+    first_cwd = tmp_path / "first-launch"
+    second_cwd = tmp_path / "second-launch"
+    first_cwd.mkdir()
+    second_cwd.mkdir()
+    monkeypatch.chdir(first_cwd)
+    importlib.reload(database)
+    importlib.reload(app_module)
+    client = app_module.app.test_client()
+
+    assert client.post("/api/income", json={"income": 3200}).status_code == 200
+    assert client.post("/api/expenses", json={
+        "description": "Power-safe expense", "amount": 125, "category": "fixed",
+    }).status_code == 200
+    assert client.post("/api/net-worth", json={
+        "item_type": "asset", "name": "Emergency fund", "category": "Cash", "amount": 5000,
+    }).status_code == 201
+    assert client.put("/api/settings", json={
+        "theme": "dark", "category_order": ["savings", "fixed"],
+    }).status_code == 200
+
+    monkeypatch.chdir(second_cwd)
+    importlib.reload(database)
+    importlib.reload(app_module)
+    restarted = app_module.app.test_client()
+
+    assert restarted.get("/api/dashboard").get_json()["summary"]["income"] == 3200
+    assert restarted.get("/api/expenses").get_json()[0]["description"] == "Power-safe expense"
+    assert restarted.get("/api/net-worth").get_json()["assets"][0]["name"] == "Emergency fund"
+    assert restarted.get("/api/settings").get_json() == {
+        "theme": "dark", "category_order": ["savings", "fixed"],
+    }
 
 
 def test_global_deficit_pledge_is_editable_highlighted_savings(tmp_path, monkeypatch):
