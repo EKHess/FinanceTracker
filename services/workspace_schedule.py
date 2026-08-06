@@ -103,7 +103,20 @@ def process_due_workspace(now=None):
     start = schedule["period_start"]
     end = next_run.date().isoformat()
     name = f"Financial Report · {start} to {end}"
-    report = create_scorecard(get_current_month()["id"], name, start, end)
+    # Report creation and schedule advancement are intentionally recoverable.
+    # If power was lost after the report committed but before the schedule was
+    # advanced, do not create a second report on the next launch.
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM scorecards WHERE start_date = ? AND end_date = ? AND name = ? ORDER BY id LIMIT 1",
+        (start, end, name),
+    ).fetchone()
+    conn.close()
+    if existing:
+        from services.scorecards import get_scorecard
+        report = get_scorecard(existing["id"])
+    else:
+        report = create_scorecard(get_current_month()["id"], name, start, end)
     if schedule["mode"] == "monthly":
         following = _add_months(next_run, 1, schedule["monthly_day"])
     else:
