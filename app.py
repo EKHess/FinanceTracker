@@ -2,6 +2,7 @@ import calendar
 import csv
 import json
 from io import BytesIO, StringIO
+import argparse
 
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
@@ -480,4 +481,8 @@ def api_import_database():
     return jsonify({"success": True})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    parser = argparse.ArgumentParser(description="A local Flask app to manage your expenses.")
+    parser.add_argument("--port", type=int, default=5000, help="Port to run on local host (default: 5000)")
+    args = parser.parse_args()
+
+    app.run(debug=True, host='0.0.0.0', port=args.port)
